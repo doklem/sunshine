@@ -1,0 +1,9 @@
+body {
+  margin: 0;
+  height: 100%;
+  background-color: black;
+}
+
+.display {
+  width: 100%;
+}

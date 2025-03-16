@@ -4,7 +4,10 @@ import { MeshBasicNodeMaterial, UniformNode } from 'three/webgpu';
 
 export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
 
-  private static readonly COLOR_GRADIENT: Uint8Array = new Uint8Array([
+  private static readonly TURBULENCE_SIZE = 32;
+  private static readonly VORONOI_SIZE = 64;
+  private static readonly VORONOI_SIZE_RECIPROCAL = 1 / Surface.VORONOI_SIZE;
+  private static readonly COLOR_GRADIENT = new Uint8Array([
     255, 192, 0, 255,
     255, 70, 0, 255,
     255, 50, 0, 255,
@@ -40,7 +43,7 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
       return texture(colorGradientTexture, vec2(heat, 0.5));
     });
 
-    this.material.colorNode = renderColor();
+    this.material.outputNode = renderColor();
   }
 
   public static async createAsync(): Promise<Surface> {
@@ -73,18 +76,16 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
     }
 
     let offset = 0;
-    const size = 64;
-    const sizeReciprocal = 1 / size;
-    const data = new Float32Array(size * size * size);
+    const data = new Float32Array(Surface.VORONOI_SIZE * Surface.VORONOI_SIZE * Surface.VORONOI_SIZE);
 
     let distance: number;
     let distance0: number;
     let distance1: number;
     let distance2: number;
-    for (z = 0; z < size; z++) {
-      for (y = 0; y < size; y++) {
-        for (x = 0; x < size; x++) {
-          point = new Vector3(x, y, z).multiplyScalar(sizeReciprocal);
+    for (z = 0; z < Surface.VORONOI_SIZE; z++) {
+      for (y = 0; y < Surface.VORONOI_SIZE; y++) {
+        for (x = 0; x < Surface.VORONOI_SIZE; x++) {
+          point = new Vector3(x, y, z).multiplyScalar(Surface.VORONOI_SIZE_RECIPROCAL);
 
           distance1 = Number.MAX_SAFE_INTEGER;
           distance2 = Number.MAX_SAFE_INTEGER;
@@ -103,7 +104,7 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
       }
     }
 
-    const texture = new Data3DTexture(data, size, size, size);
+    const texture = new Data3DTexture(data, Surface.VORONOI_SIZE, Surface.VORONOI_SIZE, Surface.VORONOI_SIZE);
     texture.format = RedFormat;
     texture.type = FloatType;
     texture.minFilter = LinearFilter;
@@ -117,31 +118,16 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
   }
 
   private static createTurbulenceTexture3D(): Data3DTexture {
-    let offset = 0;
-    const size = 32;
-    const data = new Float32Array(size * size * size * 4);
+    const data = new Float32Array(Surface.TURBULENCE_SIZE * Surface.TURBULENCE_SIZE * Surface.TURBULENCE_SIZE * 4);
 
-    const vector = new Vector3();
-    let x: number;
-    let y: number;
-    let z: number;
-    for (z = 0; z < size; z++) {
-      for (y = 0; y < size; y++) {
-        for (x = 0; x < size; x++) {
-          vector.set(Math.random(), Math.random(), Math.random()).subScalar(0.5).multiplyScalar(0.05);
-          data[offset] = vector.x;
-          offset++;
-          data[offset] = vector.y;
-          offset++;
-          data[offset] = vector.z;
-          offset++;
-          data[offset] = Math.random() * 10;
-          offset++;
-        }
-      }
+    for (let offset = 0; offset < data.length; offset += 4) {
+      data[offset] = (Math.random() - 0.5) * 0.05;
+      data[offset + 1] = (Math.random() - 0.5) * 0.05;
+      data[offset + 2] = (Math.random() - 0.5) * 0.05;
+      data[offset + 3] = Math.random() * 10;
     }
 
-    const texture = new Data3DTexture(data, size, size, size);
+    const texture = new Data3DTexture(data, Surface.TURBULENCE_SIZE, Surface.TURBULENCE_SIZE, Surface.TURBULENCE_SIZE);
     texture.format = RGBAFormat;
     texture.type = FloatType;
     texture.minFilter = LinearFilter;

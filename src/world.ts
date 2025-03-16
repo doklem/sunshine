@@ -1,8 +1,10 @@
 import Stats from 'stats-gl';
 import { PerspectiveCamera, Scene } from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import { WebGPURenderer } from 'three/webgpu';
+import { PostProcessing, WebGPURenderer } from 'three/webgpu';
 import { Surface } from './surface';
+import { pass } from 'three/tsl';
+import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 
 export class World {
 
@@ -10,6 +12,7 @@ export class World {
   private readonly camera: PerspectiveCamera;
   private readonly controls: OrbitControls;
   private readonly renderer: WebGPURenderer;
+  private readonly postProcessing: PostProcessing;
 
   private surface?: Surface;
   private lastFrame: number = 0;
@@ -28,6 +31,12 @@ export class World {
     this.controls = new OrbitControls(this.camera, canvas);
 
     this.scene = new Scene();
+
+    this.postProcessing = new PostProcessing(this.renderer);
+    const scenePass = pass(this.scene, this.camera);
+    const scenePassColor = scenePass.getTextureNode('output');
+    const bloomPass = new BloomNode(scenePassColor, 1, 0.1, 0.1);
+    this.postProcessing.outputNode = scenePassColor.add(bloomPass);
   }
 
   public async startAsync(): Promise<void> {
@@ -51,7 +60,7 @@ export class World {
       this.surface.time.value = time;
     }
     this.controls.update(delta);
-    this.renderer.render(this.scene, this.camera);
+    this.postProcessing.render();
     this.stats.update();
   }
 }

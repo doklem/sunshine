@@ -1,5 +1,5 @@
 import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, DataTexture, FloatType, LinearFilter, Mesh, RedFormat, RepeatWrapping, RGBAFormat, SphereGeometry, Vector3 } from 'three';
-import { cameraPosition, Fn, mix, normalLocal, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
+import { cameraPosition, Fn, mix, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
 import { MeshBasicNodeMaterial, UniformNode } from 'three/webgpu';
 
 export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
@@ -41,7 +41,7 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
       const heat = texture3D(voronoiTexture, normalLocal.mul(time).add(heatOffset)).r;
       const heatColor = texture(colorGradientTexture, vec2(heat, 0.5));
 
-      const halo = cameraPosition.normalize().dot(normalLocal).oneMinus().smoothstep(0.25, 0.75);
+      const halo = cameraPosition.normalize().dot(normalWorld).oneMinus().smoothstep(0.25, 0.75);
 
       return mix(heatColor, vec4(1, 0.753, 0, 1), halo);
     });

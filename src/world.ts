@@ -60,8 +60,9 @@ export class World {
       this.surface.time.value = time;
     }
     this.controls.update(delta);
-    this.scene.rotateY(delta * 0.00002);
+    this.scene.rotateY(delta * -0.00002);
     this.postProcessing.render();
+    //this.renderer.render(this.scene, this.camera);
     this.stats.update();
   }
 }

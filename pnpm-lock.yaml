@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      lil-gui:
+        specifier: ^0.20.0
+        version: 0.20.0
       stats-gl:
         specifier: ^3.6.0
         version: 3.6.0(three@0.174.0)
@@ -303,6 +306,9 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
+  lil-gui@0.20.0:
+    resolution: {integrity: sha512-k7Ipr0ztqslMA2XvM5z5ZaWhxQtnEOwJBfI/hmSuRh6q4iMG9L0boqqrnZSzBR1jzyJ28OMl47l65ILzRe1TdA==}
+
   meshoptimizer@0.18.1:
     resolution: {integrity: sha512-ZhoIoL7TNV4s5B6+rx5mC//fw8/POGyNxS/DZyCJeiZ12ScLfVwRE/GfsxwiTkMYYD5DmK2/JXnEVXqL4rF+Sw==}
 
@@ -568,6 +574,8 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
+
+  lil-gui@0.20.0: {}
 
   meshoptimizer@0.18.1: {}
 

@@ -1,17 +1,19 @@
-import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, FloatType, IcosahedronGeometry, LinearFilter, Mesh, RedFormat, RepeatWrapping, RGBAFormat, Texture, TextureLoader, Vector3 } from 'three';
-import { ImprovedNoise } from 'three/examples/jsm/Addons.js';
+import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, FloatType, IcosahedronGeometry, LinearFilter, MathUtils, Mesh, RedFormat, RepeatWrapping, RGBAFormat, Texture, TextureLoader, Vector3 } from 'three';
+import { SimplexNoise } from 'three/examples/jsm/Addons.js';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
-import { cameraPosition, Fn, mix, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
+import { cameraPosition, float, Fn, mix, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
 import { MeshBasicNodeMaterial, UniformNode } from 'three/webgpu';
 import { Settings } from './settings';
 import { WaveLength } from './wave-length';
 
 export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
 
-  private static readonly SUN_SPOT_SIZE = 32;
-  private static readonly SUN_SPOT_INITIAL_FREQUENCY = 0.1;
-  private static readonly SUN_SPOT_INITIAL_AMPLITUDE = 10;
-  private static readonly SUN_SPOT_INITIAL_OCTAVES = 8;
+  private static readonly ACTIVITY_SIZE = 32;
+  private static readonly ACTIVITY_SEAM_SIZE = Math.round(Surface.ACTIVITY_SIZE * 0.25);
+  private static readonly ACTIVITY_SEAM_SIZE_RECIPROCAL = 1 / Surface.ACTIVITY_SEAM_SIZE;
+  private static readonly ACTIVITY_OCTAVES = 10;
+  private static readonly ACTIVITY_FREQUENCY = 1 / Surface.ACTIVITY_SIZE;
+  private static readonly ACTIVITY_AMPLITUDE = 1;
   private static readonly RADIUS = 0.5;
   private static readonly DETAILS = 15;
   private static readonly TURBULENCE_SIZE = 32;
@@ -23,30 +25,38 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
   public readonly time: ShaderNodeObject<UniformNode<number>>;
 
   private constructor(
-    heatConvectionTexture: Data3DTexture,
-    turbulenceTexture: Data3DTexture,
-    sunSpotTexture: Data3DTexture,
+    voronoiTexture: Data3DTexture,
+    randomNoiseTexture: Data3DTexture,
+    simplexTexture: Data3DTexture,
     visibleLightSurfaceTexture: Texture,
     visibleLightHaloTexture: Texture,
     visibleLightSpotsTexture: Texture) {
     super(new IcosahedronGeometry(Surface.RADIUS, Surface.DETAILS), new MeshBasicNodeMaterial());
     this.time = uniform(0);
 
-    const sunSpot = texture3D(
-      sunSpotTexture,
-      normalLocal.add(this.time.mul(0.000001).sin()).add(normalLocal.mul(3))
-    ).r;
-    const latitude = normalLocal.y.abs().oneMinus().smoothstep(0.5, 0.6);
+    const latitude = normalLocal.y.abs().oneMinus();
+
+    const activityMask = texture3D(
+      simplexTexture,
+      normalLocal.mul(float(1).add(this.time.mul(0.00005).sin().mul(0.1)))
+    ).x.mul(latitude.smoothstep(0.5, 0.6)).smoothstep(0.7, 0.75);
+
+    const sunSpotShape = texture3D(
+      simplexTexture,
+      normalLocal.mul(float(5).add(this.time.mul(0.0001).sin().mul(0.1)))
+    ).r.smoothstep(0.55, 0.7);
+
+    const sunSpot = activityMask.mul(sunSpotShape);
 
     this.renderVisibleLight = Fn(() => {
-      const timeOffset = texture3D(turbulenceTexture, normalLocal.mul(0.5)).a;
+      const timeOffset = texture3D(randomNoiseTexture, normalLocal.mul(0.5)).a;
 
       const heatTrubulence = texture3D(
-        turbulenceTexture,
+        randomNoiseTexture,
         normalLocal.mul(10).add(this.time.mul(0.00001).sin())
       );
       const heat = texture3D(
-        heatConvectionTexture,
+        voronoiTexture,
         normalLocal.mul(this.time.mul(0.0005).add(timeOffset).sin().mul(0.1).add(20)).add(heatTrubulence)
       ).r;
       const heatColor = texture(visibleLightSurfaceTexture, vec2(heat, 0.5));
@@ -56,11 +66,13 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
 
       const surfaceColor = mix(heatColor, haloColor, halo);
 
-      const sunSpotHeat = sunSpot.mul(latitude);
-      const sunSpotColor = texture(visibleLightSpotsTexture, vec2(sunSpotHeat.smoothstep(7.5, 9), 0.5));
+      const sunSpotColor = texture(
+        visibleLightSpotsTexture,
+        vec2(sunSpot.sub(heat.mul(0.5)),
+        0.5)
+      );
 
-      return mix(surfaceColor, sunSpotColor, sunSpotHeat.smoothstep(7.0, 7.5));
-      return mix(heatColor, vec4(0, 0, 0, 1), sunSpot.mul(latitude));
+      return mix(surfaceColor, sunSpotColor, sunSpot);
     });
 
     this.material.outputNode = this.renderVisibleLight();
@@ -79,45 +91,143 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
 
   public static async createAsync(): Promise<Surface> {
     const loader = new TextureLoader();
+    const noise = new SimplexNoise();
     return new Surface(
-      Surface.createHeatConvectionTexture3D(),
-      Surface.createTurbulenceTexture3D(),
-      Surface.createSunSpotTexture3D(),
+      Surface.createVoronoiTexture3D(),
+      Surface.createRandomNoiseTexture3D(),
+      Surface.createSimplexTexture3D(noise),
       Surface.configureToGradient(await loader.loadAsync('visible-light_surface.png')),
       Surface.configureToGradient(await loader.loadAsync('visible-light_halo.png')),
       Surface.configureToGradient(await loader.loadAsync('visible-light_spots.png'))
     );
   }
 
-  private static createSunSpotTexture3D(): Data3DTexture {
-    const data = new Float32Array(Surface.SUN_SPOT_SIZE * Surface.SUN_SPOT_SIZE * Surface.SUN_SPOT_SIZE);
-    const perlin = new ImprovedNoise();
-    let frequency: number;
-    let amplitude: number;
-    let value: number;
+  private static createSimplexTexture3D(noise: SimplexNoise): Data3DTexture {
+    const data = new Float32Array(Surface.ACTIVITY_SIZE * Surface.ACTIVITY_SIZE * Surface.ACTIVITY_SIZE);
     let offset = 0;
-    for (let z = 0; z < Surface.SUN_SPOT_SIZE; z++) {
-      for (let y = 0; y < Surface.SUN_SPOT_SIZE; y++) {
-        for (let x = 0; x < Surface.SUN_SPOT_SIZE; x++) {
 
-          frequency = Surface.SUN_SPOT_INITIAL_FREQUENCY;
-          amplitude = Surface.SUN_SPOT_INITIAL_AMPLITUDE;
-          value = 0;
-          for (let i = 0; i < Surface.SUN_SPOT_INITIAL_OCTAVES; i++) {
-            value += perlin.noise(x * frequency, y * frequency, z * frequency) * amplitude;
-            frequency *= 2;
-            amplitude *= 0.5;
+    for (let z = 0; z < Surface.ACTIVITY_SIZE; z++) {
+      for (let y = 0; y < Surface.ACTIVITY_SIZE; y++) {
+        for (let x = 0; x < Surface.ACTIVITY_SIZE; x++) {
+          if (x < Surface.ACTIVITY_SEAM_SIZE && Surface.ACTIVITY_SEAM_SIZE <= y && Surface.ACTIVITY_SEAM_SIZE <= z) {
+
+            // Linear interpolation
+            data[offset] = MathUtils.lerp(
+              Surface.noise3dWithOctaves(noise, x + Surface.ACTIVITY_SIZE, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+              Surface.noise3dWithOctaves(noise, x, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+              x * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+            );
+          } else if (Surface.ACTIVITY_SEAM_SIZE <= x && y < Surface.ACTIVITY_SEAM_SIZE && Surface.ACTIVITY_SEAM_SIZE <= z) {
+
+            // Linear interpolation
+            data[offset] = MathUtils.lerp(
+              Surface.noise3dWithOctaves(noise, x, y + Surface.ACTIVITY_SIZE, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+              Surface.noise3dWithOctaves(noise, x, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+              y * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+            );
+          } else if (Surface.ACTIVITY_SEAM_SIZE <= x && Surface.ACTIVITY_SEAM_SIZE <= y && z < Surface.ACTIVITY_SEAM_SIZE) {
+
+            // Linear interpolation
+            data[offset] = MathUtils.lerp(
+              Surface.noise3dWithOctaves(noise, x, y, z + Surface.ACTIVITY_SIZE, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+              Surface.noise3dWithOctaves(noise, x, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+              z * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+            );
+          } else if (x < Surface.ACTIVITY_SEAM_SIZE && y < Surface.ACTIVITY_SEAM_SIZE && Surface.ACTIVITY_SEAM_SIZE <= z) {
+
+            // Bilinear interpolation
+            data[offset] = MathUtils.lerp(
+              MathUtils.lerp(
+                Surface.noise3dWithOctaves(noise, x + Surface.ACTIVITY_SIZE, y + Surface.ACTIVITY_SIZE, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                Surface.noise3dWithOctaves(noise, x + Surface.ACTIVITY_SIZE, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                y * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+              ),
+              MathUtils.lerp(
+                Surface.noise3dWithOctaves(noise, x, y + Surface.ACTIVITY_SIZE, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                Surface.noise3dWithOctaves(noise, x, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                y * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+              ),
+              x * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+            );
+          } else if (x < Surface.ACTIVITY_SEAM_SIZE && Surface.ACTIVITY_SEAM_SIZE <= y && z < Surface.ACTIVITY_SEAM_SIZE) {
+
+            // Bilinear interpolation
+            data[offset] = MathUtils.lerp(
+              MathUtils.lerp(
+                Surface.noise3dWithOctaves(noise, x + Surface.ACTIVITY_SIZE, y, z + Surface.ACTIVITY_SIZE, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                Surface.noise3dWithOctaves(noise, x + Surface.ACTIVITY_SIZE, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                z * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+              ),
+              MathUtils.lerp(
+                Surface.noise3dWithOctaves(noise, x, y, z + Surface.ACTIVITY_SIZE, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                Surface.noise3dWithOctaves(noise, x, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                z * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+              ),
+              x * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+            );
+          } else if (Surface.ACTIVITY_SEAM_SIZE <= x && y < Surface.ACTIVITY_SEAM_SIZE && z < Surface.ACTIVITY_SEAM_SIZE) {
+
+            // Bilinear interpolation
+            data[offset] = MathUtils.lerp(
+              MathUtils.lerp(
+                Surface.noise3dWithOctaves(noise, x, y + Surface.ACTIVITY_SIZE, z + Surface.ACTIVITY_SIZE, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                Surface.noise3dWithOctaves(noise, x, y + Surface.ACTIVITY_SIZE, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                z * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+              ),
+              MathUtils.lerp(
+                Surface.noise3dWithOctaves(noise, x, y, z + Surface.ACTIVITY_SIZE, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                Surface.noise3dWithOctaves(noise, x, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                z * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+              ),
+              y * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+            );
+          } else if (x < Surface.ACTIVITY_SEAM_SIZE && y < Surface.ACTIVITY_SEAM_SIZE && z < Surface.ACTIVITY_SEAM_SIZE) {
+
+            // Trilinear interpolation
+            data[offset] = MathUtils.lerp(
+              MathUtils.lerp(
+                MathUtils.lerp(
+                  Surface.noise3dWithOctaves(noise, x + Surface.ACTIVITY_SIZE, y + Surface.ACTIVITY_SIZE, z + Surface.ACTIVITY_SIZE, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                  Surface.noise3dWithOctaves(noise, x + Surface.ACTIVITY_SIZE, y + Surface.ACTIVITY_SIZE, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                  z * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+                ),
+                MathUtils.lerp(
+                  Surface.noise3dWithOctaves(noise, x + Surface.ACTIVITY_SIZE, y, z + Surface.ACTIVITY_SIZE, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                  Surface.noise3dWithOctaves(noise, x + Surface.ACTIVITY_SIZE, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                  z * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+                ),
+                y * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+              ),
+              MathUtils.lerp(
+                MathUtils.lerp(
+                  Surface.noise3dWithOctaves(noise, x, y + Surface.ACTIVITY_SIZE, z + Surface.ACTIVITY_SIZE, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                  Surface.noise3dWithOctaves(noise, x, y + Surface.ACTIVITY_SIZE, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                  z * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+                ),
+                MathUtils.lerp(
+                  Surface.noise3dWithOctaves(noise, x, y, z + Surface.ACTIVITY_SIZE, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                  Surface.noise3dWithOctaves(noise, x, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES),
+                  z * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+                ),
+                y * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+              ),
+              x * Surface.ACTIVITY_SEAM_SIZE_RECIPROCAL
+            );
+          } else {
+
+            // No interpolation
+            data[offset] = Surface.noise3dWithOctaves(noise, x, y, z, Surface.ACTIVITY_FREQUENCY, Surface.ACTIVITY_AMPLITUDE, Surface.ACTIVITY_OCTAVES);
           }
-          data[offset] = Math.abs(value);
+
           offset++;
         }
       }
     }
 
-    return Surface.configureTo3dValue(new Data3DTexture(data, Surface.SUN_SPOT_SIZE, Surface.SUN_SPOT_SIZE, Surface.SUN_SPOT_SIZE));
+    return Surface.configureTo3dValue(new Data3DTexture(data, Surface.ACTIVITY_SIZE, Surface.ACTIVITY_SIZE, Surface.ACTIVITY_SIZE));
   }
 
-  private static createHeatConvectionTexture3D(): Data3DTexture {
+  private static createVoronoiTexture3D(): Data3DTexture {
     const points: Vector3[] = [];
     const step = 0.1;
     const originVector = new Vector3();
@@ -173,7 +283,7 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
     return Surface.configureTo3dValue(new Data3DTexture(data, Surface.VORONOI_SIZE, Surface.VORONOI_SIZE, Surface.VORONOI_SIZE));
   }
 
-  private static createTurbulenceTexture3D(): Data3DTexture {
+  private static createRandomNoiseTexture3D(): Data3DTexture {
     const data = new Float32Array(Surface.TURBULENCE_SIZE * Surface.TURBULENCE_SIZE * Surface.TURBULENCE_SIZE * 4);
 
     for (let offset = 0; offset < data.length; offset += 4) {
@@ -193,6 +303,23 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
     texture.wrapR = RepeatWrapping;
     texture.needsUpdate = true;
     return texture;
+  }
+
+  private static noise3dWithOctaves(
+    noise: SimplexNoise,
+    x: number,
+    y: number,
+    z: number,
+    frequency: number,
+    amplitude: number,
+    octaves: number): number {
+    let value = 0;
+    for (let i = 0; i < octaves; i++) {
+      value += noise.noise3d(x * frequency, y * frequency, z * frequency) * amplitude;
+      frequency *= 2;
+      amplitude *= 0.5;
+    }
+    return value;
   }
 
   private static configureToGradient(texture: Texture): Texture {

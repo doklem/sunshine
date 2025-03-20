@@ -17,7 +17,8 @@ export class World {
   private readonly bloomPass: BloomNode;
 
   private surface?: Surface;
-  private lastFrame: number = 0;
+  private lastFrame = 0;
+  private rotation = true;
 
   public constructor(canvas: HTMLCanvasElement, private readonly stats: Stats) {
     this.renderer = new WebGPURenderer({
@@ -49,6 +50,7 @@ export class World {
 
   public applySettings(settings: Settings): void {
     this.bloomPass.strength.value = settings.bloomStrength;
+    this.rotation = settings.rotation;
     this.surface?.applySettings(settings);
   }
 
@@ -67,7 +69,9 @@ export class World {
       this.surface.time.value = time;
     }
     this.controls.update(delta);
+    if (this.rotation) {
     this.scene.rotateY(delta * -0.00002);
+    }
     if (this.bloomPass.strength.value > 0) {
     this.postProcessing.render();
     }

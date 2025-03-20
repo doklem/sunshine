@@ -8,6 +8,7 @@ export class Settings {
   public waveLength = WaveLength.VISIBLE_LIGHT;
   public bloomStrength = 0.1;
   public surface = true;
+  public rotation = false;
 
   public constructor(onFinishedChange: () => void) {
     this.gui.onFinishChange(() => onFinishedChange());
@@ -21,5 +22,6 @@ export class Settings {
     ).name('Wave Length');
     this.gui.add(this, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');
     this.gui.add(this, 'surface').name('Surface');
+    this.gui.add(this, 'rotation').name('Rotation');
   }
 }

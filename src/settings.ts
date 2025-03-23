@@ -5,8 +5,8 @@ export class Settings {
 
   private readonly gui = new GUI({ title: 'Sunshine' });
 
-  public waveLength = WaveLength.VISIBLE_LIGHT;
-  public bloomStrength = 0.1;
+  public waveLength = WaveLength.HMI_INTENSITYGRAM_COLORED;
+  public bloomStrength = 0;
   public surface = true;
   public rotation = false;
 
@@ -16,8 +16,7 @@ export class Settings {
       this,
       'waveLength',
       {
-        'Visible Light': WaveLength.VISIBLE_LIGHT,
-        'Extreme Ultraviolet': WaveLength.EXTREME_ULTRAVIOLET
+        'HMI Intensitygram Colored': WaveLength.HMI_INTENSITYGRAM_COLORED
       }
     ).name('Wave Length');
     this.gui.add(this, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');

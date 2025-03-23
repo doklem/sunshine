@@ -1,6 +1,6 @@
 import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, IcosahedronGeometry, LinearFilter, Mesh, RGBAFormat, Texture, TextureLoader } from 'three';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
-import { cameraPosition, float, Fn, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2 } from 'three/tsl';
+import { cameraPosition, float, Fn, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
 import { MeshBasicNodeMaterial, UniformNode } from 'three/webgpu';
 import { Settings } from './settings';
 import { WaveLength } from './wave-length';
@@ -11,6 +11,7 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
   private static readonly GEOMETRY_RADIUS = 0.5;
   private static readonly GEOMETRY_DETAILS = 15;
 
+  private readonly renderHMIItensitygram: ShaderNodeFn<[]>;
   private readonly renderHMIItensitygramColored: ShaderNodeFn<[]>;
 
   public readonly time: ShaderNodeObject<UniformNode<number>>;
@@ -49,17 +50,25 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
 
     const halo = cameraPosition.normalize().dot(normalWorld).mul(Math.PI).sin().smoothstep(1, 0);
 
+    this.renderHMIItensitygram = Fn(() => {
+      const temperature = convectionTemperatur.mul(halo.mul(0.25)).sub(sunSpot);
+      return vec4(temperature, temperature, temperature, 1);
+    });
+
     this.renderHMIItensitygramColored = Fn(() => {
       const temperature = convectionTemperatur.mul(halo.mul(0.75).add(0.25)).sub(sunSpot);
       return texture(visibleLightTexture, vec2(temperature, 0.5));
     });
 
-    this.material.outputNode = this.renderHMIItensitygramColored();
+    this.material.outputNode = this.renderHMIItensitygram();
   }
 
   public applySettings(settings: Settings): void {
     this.visible = settings.surface;
     switch (settings.waveLength) {
+      case WaveLength.HMI_INTENSITYGRAM:
+        this.material.outputNode = this.renderHMIItensitygram();
+        break;
       case WaveLength.HMI_INTENSITYGRAM_COLORED:
         this.material.outputNode = this.renderHMIItensitygramColored();
         break;

@@ -1,206 +1,114 @@
-import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, DataTexture, FloatType, IcosahedronGeometry, LinearFilter, Mesh, RedFormat, RepeatWrapping, RGBAFormat, Vector3 } from 'three';
-import { ImprovedNoise } from 'three/examples/jsm/Addons.js';
-import { cameraPosition, float, Fn, mix, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
+import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, IcosahedronGeometry, LinearFilter, Mesh, RGBAFormat, Texture, TextureLoader } from 'three';
+import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
+import { cameraPosition, float, Fn, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
 import { MeshBasicNodeMaterial, UniformNode } from 'three/webgpu';
+import { Settings } from './settings';
+import { WaveLength } from './wave-length';
+import { NoiseTextureHelper } from './noise-texture-helper';
 
 export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
 
-  private static readonly SUN_SPOT_SIZE = 32;
-  private static readonly SUN_SPOT_THRESHOLD = 5;
-  private static readonly SUN_SPOT_INITIAL_FREQUENCY = 0.1;
-  private static readonly SUN_SPOT_INITIAL_AMPLITUDE = 10;
-  private static readonly RADIUS = 0.5;
-  private static readonly DETAILS = 15;
-  private static readonly TURBULENCE_SIZE = 32;
-  private static readonly VORONOI_SIZE = 64;
-  private static readonly VORONOI_SIZE_RECIPROCAL = 1 / Surface.VORONOI_SIZE;
-  private static readonly COLOR_GRADIENT = new Uint8Array([
-    255, 192, 0, 255,
-    255, 70, 0, 255,
-    255, 50, 0, 255,
-    205, 40, 0, 255,
-    155, 20, 0, 255,
-    75, 16, 0, 255,
-    20, 4, 0, 255,
-    10, 2, 0, 255
-  ]);
+  private static readonly GEOMETRY_RADIUS = 0.5;
+  private static readonly GEOMETRY_DETAILS = 15;
+
+  private readonly renderHMIItensitygram: ShaderNodeFn<[]>;
+  private readonly renderHMIItensitygramColored: ShaderNodeFn<[]>;
 
   public readonly time: ShaderNodeObject<UniformNode<number>>;
 
-  private constructor(heatConvectionTexture: Data3DTexture, turbulenceTexture: Data3DTexture, sunSpotTexture: Data3DTexture) {
-    super(new IcosahedronGeometry(Surface.RADIUS, Surface.DETAILS), new MeshBasicNodeMaterial());
+  private constructor(
+    voronoiTexture: Data3DTexture,
+    randomNoiseTexture: Data3DTexture,
+    simplexTexture: Data3DTexture,
+    visibleLightTexture: Texture) {
+    super(new IcosahedronGeometry(Surface.GEOMETRY_RADIUS, Surface.GEOMETRY_DETAILS), new MeshBasicNodeMaterial());
     this.time = uniform(0);
 
-    const colorGradientTexture = new DataTexture(Surface.COLOR_GRADIENT, Surface.COLOR_GRADIENT.length * 0.25, 1);
-    colorGradientTexture.format = RGBAFormat;
-    colorGradientTexture.minFilter = LinearFilter;
-    colorGradientTexture.magFilter = LinearFilter;
-    colorGradientTexture.wrapS = ClampToEdgeWrapping;
-    colorGradientTexture.wrapT = ClampToEdgeWrapping;
-    colorGradientTexture.generateMipmaps = true;
-    colorGradientTexture.needsUpdate = true;
+    const latitude = normalLocal.y.abs().oneMinus();
 
-    const renderColor = Fn(() => {
-      const timeOffset = texture3D(turbulenceTexture, normalLocal.mul(0.5)).a;
+    const activityMask = texture3D(
+      simplexTexture,
+      normalLocal.mul(float(1).add(this.time.mul(0.00005).sin().mul(0.1)))
+    ).x.mul(latitude.smoothstep(0.5, 0.6)).smoothstep(0.7, 0.75);
 
-      const heatTrubulence = texture3D(
-        turbulenceTexture,
-        normalLocal.mul(10).add(this.time.mul(0.00001).sin())
-      );
-      const heat = texture3D(
-        heatConvectionTexture,
-        normalLocal.mul(this.time.mul(0.0005).add(timeOffset).sin().mul(0.1).add(20)).add(heatTrubulence)
-      ).r;
-      const halo = cameraPosition.normalize().dot(normalWorld).oneMinus().smoothstep(0.25, 0.75);
+    const sunSpotShape = texture3D(
+      simplexTexture,
+      normalLocal.mul(float(5).add(this.time.mul(0.0001).sin().mul(0.1)))
+    ).r.smoothstep(0.55, 0.7);
 
-      const heatColor = texture(
-        colorGradientTexture,
-        vec2(mix(heat, float(0), halo),
-          0.5));
-      const sunSpot = texture3D(
-        sunSpotTexture,
-        normalLocal.add(this.time.mul(0.000001).sin())
-      ).r;
-      const latitude = normalLocal.y.abs().oneMinus().smoothstep(0.5, 0.6);
+    const sunSpot = activityMask.mul(sunSpotShape);
+    const timeOffset = texture3D(randomNoiseTexture, normalLocal.mul(0.5)).a;
 
-      return mix(heatColor, vec4(0, 0, 0, 1), sunSpot.mul(latitude));
+    const tempertureTrubulence = texture3D(
+      randomNoiseTexture,
+      normalLocal.mul(10).add(this.time.mul(0.00001).sin())
+    );
+    const convectionTemperatur = texture3D(
+      voronoiTexture,
+      normalLocal.mul(this.time.mul(0.0005).add(timeOffset).sin().mul(0.1).add(20)).add(tempertureTrubulence)
+    ).r.mul(0.25).add(0.75);
+
+    const halo = cameraPosition.normalize().dot(normalWorld).mul(Math.PI).sin().smoothstep(1, 0);
+
+    this.renderHMIItensitygram = Fn(() => {
+      const temperature = convectionTemperatur.mul(halo.mul(0.25)).sub(sunSpot);
+      return vec4(temperature, temperature, temperature, 1);
     });
 
-    this.material.outputNode = renderColor();
+    this.renderHMIItensitygramColored = Fn(() => {
+      const temperature = convectionTemperatur.mul(halo.mul(0.75).add(0.25)).sub(sunSpot);
+      return texture(visibleLightTexture, vec2(temperature, 0.5));
+    });
+
+    this.material.outputNode = this.renderHMIItensitygram();
+  }
+
+  public applySettings(settings: Settings): void {
+    this.visible = settings.surface;
+    switch (settings.waveLength) {
+      case WaveLength.HMI_INTENSITYGRAM:
+        this.material.outputNode = this.renderHMIItensitygram();
+        break;
+      case WaveLength.HMI_INTENSITYGRAM_COLORED:
+        this.material.outputNode = this.renderHMIItensitygramColored();
+        break;
+    }
+    this.material.needsUpdate = true;
   }
 
   public static async createAsync(): Promise<Surface> {
+    const loader = new TextureLoader();
+    const noiseHelper = new NoiseTextureHelper(
+      {
+        size: 32,
+        seam: 0.25,
+        frequency: 1 / 32,
+        amplitude: 1,
+        octaves: 10
+      },
+      {
+        size: 64,
+        volumeSize: 1
+      },
+      {
+        size: 32
+      }
+    );
     return new Surface(
-      Surface.createHeatConvectionTexture3D(),
-      Surface.createTurbulenceTexture3D(),
-      Surface.createSunSpotTexture3D()
+      noiseHelper.createVoronoiTexture3D(),
+      noiseHelper.createWhiteNoiseTexture3D(),
+      noiseHelper.createSimplexTexture3D(),
+      Surface.configureToGradient(await loader.loadAsync('hmi-intensitygram-colored.png'))
     );
   }
 
-  private static createSunSpotTexture3D(): Data3DTexture {
-    const data = new Float32Array(Surface.SUN_SPOT_SIZE * Surface.SUN_SPOT_SIZE * Surface.SUN_SPOT_SIZE);
-
-    const perlin = new ImprovedNoise();
-
-    let frequency: number;
-    let amplitude: number;
-    let value: number;
-    let offset = 0;
-    for (let z = 0; z < Surface.SUN_SPOT_SIZE; z++) {
-      for (let y = 0; y < Surface.SUN_SPOT_SIZE; y++) {
-        for (let x = 0; x < Surface.SUN_SPOT_SIZE; x++) {
-
-          frequency = Surface.SUN_SPOT_INITIAL_FREQUENCY;
-          amplitude = Surface.SUN_SPOT_INITIAL_AMPLITUDE;
-          value = 0;
-          for (let i = 0; i < 4; i++) {
-            value += perlin.noise(x * frequency, y * frequency, z * frequency) * amplitude;
-            frequency *= 2;
-            amplitude *= 0.5;
-          }
-          data[offset] = Math.min(1, Math.max(0, Math.abs(value) - Surface.SUN_SPOT_THRESHOLD));
-          offset++;
-        }
-      }
-    }
-
-    const texture = new Data3DTexture(data, Surface.SUN_SPOT_SIZE, Surface.SUN_SPOT_SIZE, Surface.SUN_SPOT_SIZE);
-    texture.format = RedFormat;
-    texture.type = FloatType;
-    texture.minFilter = LinearFilter;
-    texture.magFilter = LinearFilter;
-    texture.wrapS = RepeatWrapping;
-    texture.wrapT = RepeatWrapping;
-    texture.wrapR = RepeatWrapping;
-    texture.needsUpdate = true;
-    return texture;
-  }
-
-  private static createHeatConvectionTexture3D(): Data3DTexture {
-    const points: Vector3[] = [];
-
-    const step = 0.1;
-    const originVector = new Vector3();
-    let point: Vector3;
-    let x: number;
-    let y: number;
-    let z: number;
-    for (z = 0; z < 1; z += step) {
-      for (y = 0; y < 1; y += step) {
-        for (x = 0; x < 1; x += step) {
-          point = new Vector3(step, step, step)
-            .multiply(new Vector3(Math.random(), Math.random(), Math.random()))
-            .add(originVector.set(x, y, z));
-          points.push(point);
-
-          point = new Vector3(step, step, step)
-            .multiply(new Vector3(Math.random(), Math.random(), Math.random()))
-            .add(originVector.set(x, y, z));
-          points.push(point);
-        }
-      }
-    }
-
-    let offset = 0;
-    const data = new Float32Array(Surface.VORONOI_SIZE * Surface.VORONOI_SIZE * Surface.VORONOI_SIZE);
-
-    let distance: number;
-    let distance0: number;
-    let distance1: number;
-    let distance2: number;
-    for (z = 0; z < Surface.VORONOI_SIZE; z++) {
-      for (y = 0; y < Surface.VORONOI_SIZE; y++) {
-        for (x = 0; x < Surface.VORONOI_SIZE; x++) {
-          point = new Vector3(x, y, z).multiplyScalar(Surface.VORONOI_SIZE_RECIPROCAL);
-
-          distance1 = Number.MAX_SAFE_INTEGER;
-          distance2 = Number.MAX_SAFE_INTEGER;
-          for (let i = 0; i < points.length; i++) {
-            distance0 = points[i].distanceToSquared(point);
-            if (distance0 < distance1) {
-              distance2 = distance1;
-              distance1 = distance0;
-            }
-          }
-
-          distance = distance1 / distance2;
-          data[offset] = distance;
-          offset++;
-        }
-      }
-    }
-
-    const texture = new Data3DTexture(data, Surface.VORONOI_SIZE, Surface.VORONOI_SIZE, Surface.VORONOI_SIZE);
-    texture.format = RedFormat;
-    texture.type = FloatType;
-    texture.minFilter = LinearFilter;
-    texture.magFilter = LinearFilter;
-    texture.wrapS = RepeatWrapping;
-    texture.wrapT = RepeatWrapping;
-    texture.wrapR = RepeatWrapping;
-    texture.unpackAlignment = 1;
-    texture.needsUpdate = true;
-    return texture;
-  }
-
-  private static createTurbulenceTexture3D(): Data3DTexture {
-    const data = new Float32Array(Surface.TURBULENCE_SIZE * Surface.TURBULENCE_SIZE * Surface.TURBULENCE_SIZE * 4);
-
-    for (let offset = 0; offset < data.length; offset += 4) {
-      data[offset] = (Math.random() - 0.5) * 0.05;
-      data[offset + 1] = (Math.random() - 0.5) * 0.05;
-      data[offset + 2] = (Math.random() - 0.5) * 0.05;
-      data[offset + 3] = Math.random() * 10;
-    }
-
-    const texture = new Data3DTexture(data, Surface.TURBULENCE_SIZE, Surface.TURBULENCE_SIZE, Surface.TURBULENCE_SIZE);
+  private static configureToGradient(texture: Texture): Texture {
     texture.format = RGBAFormat;
-    texture.type = FloatType;
     texture.minFilter = LinearFilter;
     texture.magFilter = LinearFilter;
-    texture.wrapS = RepeatWrapping;
-    texture.wrapT = RepeatWrapping;
-    texture.wrapR = RepeatWrapping;
+    texture.wrapS = ClampToEdgeWrapping;
+    texture.wrapT = ClampToEdgeWrapping;
+    texture.generateMipmaps = true;
     texture.needsUpdate = true;
     return texture;
   }

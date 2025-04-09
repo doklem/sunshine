@@ -1,10 +1,13 @@
 import Stats from 'stats-gl';
 import { World } from './world';
+import { Settings } from './settings';
 
 export class Main {
+
   private readonly world: World;
   private readonly canvas: HTMLCanvasElement;
   private readonly stats: Stats;
+  private readonly settings: Settings;
 
   public constructor() {
     const display = document.querySelector<HTMLCanvasElement>('#display');;
@@ -12,6 +15,8 @@ export class Main {
       throw new Error('Failed to obtain the HTML canvas element');
     }
     this.canvas = display;
+
+    this.settings = new Settings(this.applySettings.bind(this));
 
     this.stats = new Stats({
       trackGPU: false,
@@ -33,6 +38,7 @@ export class Main {
 
   public async runAsync(): Promise<void> {
     await this.world.startAsync();
+    this.world.applySettings(this.settings);
     window.addEventListener('resize', this.onResize.bind(this));
   }
 
@@ -40,6 +46,10 @@ export class Main {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
     this.world.onResize(window.innerWidth, window.innerHeight, window.devicePixelRatio);
+  }
+
+  private applySettings(): void {
+    this.world.applySettings(this.settings);
   }
 }
 

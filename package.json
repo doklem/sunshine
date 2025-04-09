@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --port=4200",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ci": "pnpm install && tsc && vite build"
   },
   "devDependencies": {
     "@types/three": "^0.174.0",
@@ -17,5 +18,6 @@
     "lil-gui": "^0.20.0",
     "stats-gl": "^3.6.0",
     "three": "^0.174.0"
-  }
+  },
+  "packageManager": "pnpm@9.15.0"
 }

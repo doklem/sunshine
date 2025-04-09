@@ -1,6 +1,6 @@
 import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, IcosahedronGeometry, LinearFilter, Mesh, RGBAFormat, Texture, TextureLoader } from 'three';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
-import { cameraPosition, float, Fn, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
+import { cameraPosition, float, Fn, mix, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
 import { MeshBasicNodeMaterial, UniformNode } from 'three/webgpu';
 import { Settings } from './settings';
 import { WaveLength } from './wave-length';
@@ -13,6 +13,7 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
 
   private readonly renderHMIItensitygram: ShaderNodeFn<[]>;
   private readonly renderHMIItensitygramColored: ShaderNodeFn<[]>;
+  private readonly renderAIA304A: ShaderNodeFn<[]>;
 
   public readonly time: ShaderNodeObject<UniformNode<number>>;
 
@@ -60,12 +61,19 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
       return texture(visibleLightTexture, vec2(temperature, 0.5));
     });
 
+    this.renderAIA304A = Fn(() => {
+      return mix(vec4(0.8, 0, 0, 1), vec4(1, 1, 0, 1), sunSpot);
+    });
+
     this.material.outputNode = this.renderHMIItensitygram();
   }
 
   public applySettings(settings: Settings): void {
     this.visible = settings.surface;
     switch (settings.waveLength) {
+      case WaveLength.AIA_304_A:
+        this.material.outputNode = this.renderAIA304A();
+        break;
       case WaveLength.HMI_INTENSITYGRAM:
         this.material.outputNode = this.renderHMIItensitygram();
         break;

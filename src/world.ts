@@ -5,6 +5,7 @@ import { PostProcessing, WebGPURenderer } from 'three/webgpu';
 import { Surface } from './surface';
 import { pass } from 'three/tsl';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
+import { FireFountains } from './fire-fountains';
 import { Settings } from './settings';
 
 export class World {
@@ -16,6 +17,7 @@ export class World {
   private readonly postProcessing: PostProcessing;
   private readonly bloomPass: BloomNode;
 
+  private fireFountains?: FireFountains;
   private surface?: Surface;
   private lastFrame = 0;
   private rotation = true;
@@ -45,12 +47,17 @@ export class World {
   public async startAsync(): Promise<void> {
     this.surface = await Surface.createAsync();
     this.scene.add(this.surface);
+
+    this.fireFountains = FireFountains.create();
+    this.scene.add(this.fireFountains);
+
     this.renderer.setAnimationLoop(this.onAnimationFrame.bind(this));
   }
 
   public applySettings(settings: Settings): void {
     this.bloomPass.strength.value = settings.bloomStrength;
     this.rotation = settings.rotation;
+    this.fireFountains?.applySettings(settings);
     this.surface?.applySettings(settings);
   }
 
@@ -70,10 +77,10 @@ export class World {
     }
     this.controls.update(delta);
     if (this.rotation) {
-    this.scene.rotateY(delta * -0.00002);
+      this.scene.rotateY(delta * -0.00002);
     }
     if (this.bloomPass.strength.value > 0) {
-    this.postProcessing.render();
+      this.postProcessing.render();
     }
     else {
       this.renderer.render(this.scene, this.camera);

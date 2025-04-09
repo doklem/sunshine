@@ -17,7 +17,8 @@ export class Settings {
       'waveLength',
       {
         'HMI Intensitygram': WaveLength.HMI_INTENSITYGRAM,
-        'HMI Intensitygram Colored': WaveLength.HMI_INTENSITYGRAM_COLORED
+        'HMI Intensitygram Colored': WaveLength.HMI_INTENSITYGRAM_COLORED,
+        'AIA 304 A': WaveLength.AIA_304_A
       }
     ).name('Wave Length');
     this.gui.add(this, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');

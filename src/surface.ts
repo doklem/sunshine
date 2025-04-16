@@ -1,15 +1,16 @@
 import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, IcosahedronGeometry, LinearFilter, Mesh, RGBAFormat, Texture, TextureLoader } from 'three';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
 import { cameraPosition, float, Fn, mix, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
-import { MeshBasicNodeMaterial, UniformNode } from 'three/webgpu';
+import { NodeMaterial, UniformNode } from 'three/webgpu';
 import { Settings } from './settings';
 import { WaveLength } from './wave-length';
 import { NoiseTextureHelper } from './noise-texture-helper';
 
-export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
+export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
 
-  private static readonly GEOMETRY_RADIUS = 0.5;
   private static readonly GEOMETRY_DETAILS = 15;
+
+  public static readonly GEOMETRY_RADIUS = 0.5;
 
   private readonly renderHMIItensitygram: ShaderNodeFn<[]>;
   private readonly renderHMIItensitygramColored: ShaderNodeFn<[]>;
@@ -22,7 +23,7 @@ export class Surface extends Mesh<BufferGeometry, MeshBasicNodeMaterial> {
     randomNoiseTexture: Data3DTexture,
     simplexTexture: Data3DTexture,
     visibleLightTexture: Texture) {
-    super(new IcosahedronGeometry(Surface.GEOMETRY_RADIUS, Surface.GEOMETRY_DETAILS), new MeshBasicNodeMaterial());
+    super(new IcosahedronGeometry(Surface.GEOMETRY_RADIUS, Surface.GEOMETRY_DETAILS), new NodeMaterial());
     this.time = uniform(0);
 
     const latitude = normalLocal.y.abs().oneMinus();

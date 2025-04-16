@@ -1,18 +1,20 @@
 import { AdditiveBlending, InstancedMesh, PlaneGeometry, Texture, Vector3 } from 'three';
-import { Fn, instancedArray, instanceIndex, ShaderNodeObject, vec3 } from 'three/tsl';
-import { ComputeNode, SpriteNodeMaterial, StorageBufferNode, WebGPURenderer } from 'three/webgpu';
+import { Fn, instancedArray, instanceIndex, int, ShaderNodeObject, texture3D, time, vec3 } from 'three/tsl';
+import { SpriteNodeMaterial, StorageBufferNode, WebGPURenderer } from 'three/webgpu';
 import { Settings } from './settings';
 import { WaveLength } from './wave-length';
 import { MagneticFieldLines } from './magnetic-field-lines';
 import { BezierFunctions } from './bezier-functions';
+import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
 
 export class LowAltitudeChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> {
 
   private static readonly PARTICLE_SIZE = 0.1;
+  private static readonly OFFSET_STRENGTH = 0.2;
 
   private readonly positionBuffer: ShaderNodeObject<StorageBufferNode>;
   private readonly progressBuffer: ShaderNodeObject<StorageBufferNode>;
-  private readonly computeUpdate: ShaderNodeObject<ComputeNode>;
+  private readonly computeUpdate: ShaderNodeFn<[]>;
 
   public constructor(private readonly magneticFieldLines: MagneticFieldLines, map: Texture, count: number) {
     super(
@@ -41,17 +43,17 @@ export class LowAltitudeChargedParticles extends InstancedMesh<PlaneGeometry, Sp
       const fieldLineId = instanceIndex.modInt(this.magneticFieldLines.lowAltitudeFieldLines.count).toVar();
       const incrementedProgress = progress.add(this.magneticFieldLines.lowAltitudeFieldLines.speedsBuffer.element(fieldLineId)).mod(1).toVar();
       this.progressBuffer.element(instanceIndex).assign(incrementedProgress);
+      const position = BezierFunctions.QUADRATIC_CURVE(
+        this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[0].element(fieldLineId),
+        this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[1].element(fieldLineId),
+        this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[2].element(fieldLineId),
+        incrementedProgress
+      ).toVar();
+      const offset = texture3D(this.magneticFieldLines.distortionTexture, position.mul(time.mul(0.1).sin()), int(0)).rgb.mul(LowAltitudeChargedParticles.OFFSET_STRENGTH);
       this.positionBuffer
         .element(instanceIndex)
-        .assign(
-          BezierFunctions.QUADRATIC_CURVE(
-            this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[0].element(fieldLineId),
-            this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[1].element(fieldLineId),
-            this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[2].element(fieldLineId),
-            incrementedProgress
-          )
-        );
-    })().compute(this.count);
+        .assign(position.add(offset));
+    });
 
     this.material.positionNode = this.positionBuffer.element(instanceIndex);
     this.material.scaleNode = Fn(() => {
@@ -73,7 +75,7 @@ export class LowAltitudeChargedParticles extends InstancedMesh<PlaneGeometry, Sp
 
   public onAnimationFrame(renderer: WebGPURenderer): void {
     if (this.visible) {
-      renderer.compute(this.computeUpdate);
+      renderer.compute(this.computeUpdate().compute(this.count));
     }
   }
 }

@@ -1,7 +1,9 @@
-import { Vector3 } from 'three';
-import { instancedArray } from 'three/tsl';
+import { Data3DTexture, Vector3 } from 'three';
+import { Fn, instancedArray } from 'three/tsl';
 import { Surface } from './surface';
 import { MagneticFieldLineSet } from './magnetic-field-line-set';
+import { StorageBufferAttribute, WebGPURenderer } from 'three/webgpu';
+import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
 
 export class MagneticFieldLines {
 
@@ -17,7 +19,10 @@ export class MagneticFieldLines {
   public readonly lowAltitudeFieldLines: MagneticFieldLineSet;
   public readonly highAltitudeFieldLines: MagneticFieldLineSet;
 
-  public constructor(public readonly countNorthPole: number, public readonly countSouthPole: number) {
+  public constructor(
+    countNorthPole: number,
+    countSouthPole: number,
+    public readonly distortionTexture: Data3DTexture) {
     const northPolePositions: Vector3[] = MagneticFieldLines.fibonacciSphere(countNorthPole);
     const southPolePositions: Vector3[] = MagneticFieldLines.fibonacciSphere(countSouthPole);
     const lowAltitudeConnections: Vector3[][] = [];
@@ -54,18 +59,18 @@ export class MagneticFieldLines {
     const thridControlPoints = new Float32Array(firstControlPoints.length);
     const speeds = new Float32Array(connections.length);
     const secondControlPoint = new Vector3();
-    let offsetControlPoint = 0;
-    let offsetSpeed = 0;
+    let vectorOffset = 0;
+    let scalarOffset = 0;
 
     connections.forEach(connection => {
-      firstControlPoints.set(connection[0].toArray(), offsetControlPoint);
+      firstControlPoints.set(connection[0].toArray(), vectorOffset);
       secondControlPoint.lerpVectors(connection[0], connection[1], 0.5).normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS);
-      secondControlPoints.set(secondControlPoint.toArray(), offsetControlPoint);
-      thridControlPoints.set(connection[1].toArray(), offsetControlPoint);
-      offsetControlPoint += 3;
+      secondControlPoints.set(secondControlPoint.toArray(), vectorOffset);
+      thridControlPoints.set(connection[1].toArray(), vectorOffset);
+      vectorOffset += 3;
 
-      speeds.set([Math.random() * MagneticFieldLines.SPEED_DELTA + MagneticFieldLines.SPEED_MIN], offsetSpeed);
-      offsetSpeed++;
+      speeds.set([Math.random() * MagneticFieldLines.SPEED_DELTA + MagneticFieldLines.SPEED_MIN], scalarOffset);
+      scalarOffset++;
     });
 
     return {
@@ -86,21 +91,21 @@ export class MagneticFieldLines {
     const fourthControlPoints = new Float32Array(firstControlPoints.length);
     const speeds = new Float32Array(connections.length);
     const controlPoint = new Vector3();
-    let offsetControlPoint = 0;
-    let offsetSpeed = 0;
+    let vectorOffset = 0;
+    let scalarOffset = 0;
 
     connections.forEach(connection => {
-      firstControlPoints.set(connection[0].toArray(), offsetControlPoint);
+      firstControlPoints.set(connection[0].toArray(), vectorOffset);
       controlPoint.copy(connection[0]).normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS);
-      secondControlPoints.set(controlPoint.toArray(), offsetControlPoint);
+      secondControlPoints.set(controlPoint.toArray(), vectorOffset);
       controlPoint.copy(connection[1]).normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS);
-      thridControlPoints.set(controlPoint.toArray(), offsetControlPoint);
+      thridControlPoints.set(controlPoint.toArray(), vectorOffset);
       controlPoint.copy(connection[1]).normalize().multiplyScalar(MagneticFieldLines.HIGH_ALTITUDE_RADIUS);
-      fourthControlPoints.set(controlPoint.toArray(), offsetControlPoint);
-      offsetControlPoint += 3;
+      fourthControlPoints.set(controlPoint.toArray(), vectorOffset);
+      vectorOffset += 3;
 
-      speeds.set([Math.random() * MagneticFieldLines.SPEED_DELTA + MagneticFieldLines.SPEED_MIN], offsetSpeed);
-      offsetSpeed++;
+      speeds.set([Math.random() * MagneticFieldLines.SPEED_DELTA + MagneticFieldLines.SPEED_MIN], scalarOffset);
+      scalarOffset++;
     });
 
     return {

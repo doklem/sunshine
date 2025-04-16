@@ -1,10 +1,9 @@
-import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, IcosahedronGeometry, LinearFilter, Mesh, RGBAFormat, Texture, TextureLoader } from 'three';
+import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, IcosahedronGeometry, LinearFilter, Mesh, RGBAFormat, Texture } from 'three';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
-import { cameraPosition, float, Fn, mix, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
+import { cameraPosition, float, Fn, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
 import { NodeMaterial, UniformNode } from 'three/webgpu';
 import { Settings } from './settings';
 import { WaveLength } from './wave-length';
-import { NoiseTextureHelper } from './noise-texture-helper';
 
 export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
 
@@ -18,12 +17,14 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
 
   public readonly time: ShaderNodeObject<UniformNode<number>>;
 
-  private constructor(
+  public constructor(
     voronoiTexture: Data3DTexture,
     randomNoiseTexture: Data3DTexture,
     simplexTexture: Data3DTexture,
-    visibleLightTexture: Texture) {
+    colorGradient: Texture) {
     super(new IcosahedronGeometry(Surface.GEOMETRY_RADIUS, Surface.GEOMETRY_DETAILS), new NodeMaterial());
+    const colorGradientTexture = Surface.configureToGradient(colorGradient);
+
     this.time = uniform(0);
 
     const latitude = normalLocal.y.abs().oneMinus();
@@ -59,11 +60,11 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
 
     this.renderHMIItensitygramColored = Fn(() => {
       const temperature = convectionTemperatur.mul(halo.mul(0.75).add(0.25)).sub(sunSpot);
-      return texture(visibleLightTexture, vec2(temperature, 0.5));
+      return texture(colorGradientTexture, vec2(temperature, 0.5));
     });
 
     this.renderAIA304A = Fn(() => {
-      return mix(vec4(0.8, 0, 0, 1), vec4(1, 1, 0, 1), sunSpot);
+      return vec4(0, 0, 0, 1);
     });
 
     this.material.outputNode = this.renderHMIItensitygram();
@@ -83,32 +84,6 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
         break;
     }
     this.material.needsUpdate = true;
-  }
-
-  public static async createAsync(): Promise<Surface> {
-    const loader = new TextureLoader();
-    const noiseHelper = new NoiseTextureHelper(
-      {
-        size: 32,
-        seam: 0.25,
-        frequency: 1 / 32,
-        amplitude: 1,
-        octaves: 10
-      },
-      {
-        size: 64,
-        volumeSize: 1
-      },
-      {
-        size: 32
-      }
-    );
-    return new Surface(
-      noiseHelper.createVoronoiTexture3D(),
-      noiseHelper.createWhiteNoiseTexture3D(),
-      noiseHelper.createSimplexTexture3D(),
-      Surface.configureToGradient(await loader.loadAsync('hmi-intensitygram-colored.png'))
-    );
   }
 
   private static configureToGradient(texture: Texture): Texture {

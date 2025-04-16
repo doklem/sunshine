@@ -10,6 +10,7 @@ import { Settings } from './settings';
 import { LowAltitudeChargedParticles } from './low-altitude-charged-particles';
 import { MagneticFieldLines } from './magnetic-field-lines';
 import { HighAltitudeChargedParticles } from './high-altitude-charged-particles';
+import { NoiseTextureHelper } from './noise-texture-helper';
 
 export class World {
 
@@ -20,6 +21,7 @@ export class World {
   private readonly postProcessing: PostProcessing;
   private readonly bloomPass: BloomNode;
   private readonly magneticFieldLines: MagneticFieldLines;
+  private readonly noiseHelper: NoiseTextureHelper;
 
   private fireFountains?: FireFountains;
   private lowAltitudeChargedParticles?: LowAltitudeChargedParticles;
@@ -43,7 +45,8 @@ export class World {
 
     this.scene = new Scene();
 
-    this.magneticFieldLines = new MagneticFieldLines(8, 500);
+    this.noiseHelper = new NoiseTextureHelper();
+    this.magneticFieldLines = new MagneticFieldLines(8, 500, this.noiseHelper.createSimplexTexture3D(32, 0.25, 1 / 32, 1, 3, 4));
 
     this.postProcessing = new PostProcessing(this.renderer);
     const scenePass = pass(this.scene, this.camera);
@@ -62,7 +65,12 @@ export class World {
     this.highAltitudeChargedParticles = new HighAltitudeChargedParticles(this.magneticFieldLines, chargedParticleTexture, 4000);
     this.scene.add(this.highAltitudeChargedParticles);
 
-    this.surface = await Surface.createAsync();
+    this.surface = new Surface(
+      this.noiseHelper.createVoronoiTexture3D(64, 1),
+      this.noiseHelper.createWhiteNoiseTexture3D(32),
+      this.noiseHelper.createSimplexTexture3D(32, 0.25, 1 / 32, 1, 10, 1),
+      await loader.loadAsync('hmi-intensitygram-colored.png')
+    );
     this.scene.add(this.surface);
 
     this.fireFountains = FireFountains.create();

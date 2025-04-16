@@ -12,7 +12,7 @@ export class HighAltitudeChargedParticles extends InstancedMesh<PlaneGeometry, S
   private static readonly PARTICLE_SIZE = 0.1;
   private static readonly RAMPED_PROGRES_START = 0.02;
   private static readonly RAMPED_PROGRES_END = HighAltitudeChargedParticles.RAMPED_PROGRES_START + 0.1;
-  private static readonly OFFSET_STRENGTH = 0.3;
+  private static readonly OFFSET_STRENGTH = 0.2;
 
   private readonly positionBuffer: ShaderNodeObject<StorageBufferNode>;
   private readonly progressBuffer: ShaderNodeObject<StorageBufferNode>;
@@ -52,21 +52,22 @@ export class HighAltitudeChargedParticles extends InstancedMesh<PlaneGeometry, S
         this.magneticFieldLines.highAltitudeFieldLines.controlPointBuffers[3].element(fieldLineId),
         incrementedProgress
       ).toVar();
+      const height = position.length().toVar();
       const offset = texture3D(this.magneticFieldLines.distortionTexture, position.mul(time.mul(0.1).sin()), int(0)).rgb.mul(HighAltitudeChargedParticles.OFFSET_STRENGTH);
       this.positionBuffer
         .element(instanceIndex)
-        .assign(position.add(offset));
+        .assign(position.add(offset).normalize().mul(height));
     });
 
     this.material.positionNode = this.positionBuffer.element(instanceIndex);
 
-    //ToDo: Become bigger at top
+    //ToDo: Become bigger at top.
     this.material.scaleNode = Fn(() => {
       const scale = rampedProgress.toVar();
       return vec3(scale, scale, scale);
     })();
 
-    //ToDo: Fade at top
+    //ToDo: Fade at top.
     this.material.opacityNode = Fn(() => {
       const opacity = rampedProgress.mul(0.2).toVar();
       return vec3(opacity, opacity, opacity);

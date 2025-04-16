@@ -1,13 +1,11 @@
 import { Data3DTexture, Vector3 } from 'three';
-import { Fn, instancedArray } from 'three/tsl';
+import { instancedArray } from 'three/tsl';
 import { Surface } from './surface';
 import { MagneticFieldLineSet } from './magnetic-field-line-set';
-import { StorageBufferAttribute, WebGPURenderer } from 'three/webgpu';
-import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
 
 export class MagneticFieldLines {
 
-  private static readonly RADIUS = Surface.GEOMETRY_RADIUS * 0.9;
+  private static readonly BASE_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 0.9;
   private static readonly HIGH_ALTITUDE_DISTANCE = 0.02;
   private static readonly LOW_ALTITUDE_DISTANCE = 0.04;
   private static readonly SPEED_MIN = 0.001;
@@ -133,7 +131,7 @@ export class MagneticFieldLines {
       y = 1 - i * doubleCountReciprocal;
       radius = Math.sqrt(1 - y * y);
       theta = phi * i;
-      positions[i] = new Vector3(Math.cos(theta) * radius, y, Math.sin(theta) * radius).multiplyScalar(MagneticFieldLines.RADIUS);
+      positions[i] = new Vector3(Math.cos(theta) * radius, y, Math.sin(theta) * radius).multiplyScalar(MagneticFieldLines.BASE_ALTITUDE_RADIUS);
     }
 
     return positions;

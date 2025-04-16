@@ -49,10 +49,11 @@ export class LowAltitudeChargedParticles extends InstancedMesh<PlaneGeometry, Sp
         this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[2].element(fieldLineId),
         incrementedProgress
       ).toVar();
+      const height = position.length().toVar();
       const offset = texture3D(this.magneticFieldLines.distortionTexture, position.mul(time.mul(0.1).sin()), int(0)).rgb.mul(LowAltitudeChargedParticles.OFFSET_STRENGTH);
       this.positionBuffer
         .element(instanceIndex)
-        .assign(position.add(offset));
+        .assign(position.add(offset).normalize().mul(height));
     });
 
     this.material.positionNode = this.positionBuffer.element(instanceIndex);

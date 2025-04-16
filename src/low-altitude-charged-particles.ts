@@ -6,11 +6,9 @@ import { WaveLength } from './wave-length';
 import { MagneticFieldLines } from './magnetic-field-lines';
 import { BezierFunctions } from './bezier-functions';
 
-export class HighLevelChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> {
+export class LowAltitudeChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> {
 
   private static readonly PARTICLE_SIZE = 0.1;
-  private static readonly RAMPED_PROGRES_START = 0.02;
-  private static readonly RAMPED_PROGRES_END = HighLevelChargedParticles.RAMPED_PROGRES_START + 0.1;
 
   private readonly positionBuffer: ShaderNodeObject<StorageBufferNode>;
   private readonly progressBuffer: ShaderNodeObject<StorageBufferNode>;
@@ -18,7 +16,7 @@ export class HighLevelChargedParticles extends InstancedMesh<PlaneGeometry, Spri
 
   public constructor(private readonly magneticFieldLines: MagneticFieldLines, map: Texture, count: number) {
     super(
-      new PlaneGeometry(HighLevelChargedParticles.PARTICLE_SIZE, HighLevelChargedParticles.PARTICLE_SIZE),
+      new PlaneGeometry(LowAltitudeChargedParticles.PARTICLE_SIZE, LowAltitudeChargedParticles.PARTICLE_SIZE),
       new SpriteNodeMaterial({ blending: AdditiveBlending, map, depthWrite: false }),
       count
     );
@@ -37,20 +35,19 @@ export class HighLevelChargedParticles extends InstancedMesh<PlaneGeometry, Spri
     this.progressBuffer.value.set(new Float32Array(initialProgress));
 
     const progress = this.progressBuffer.element(instanceIndex);
-    const rampedProgress = progress.smoothstep(HighLevelChargedParticles.RAMPED_PROGRES_START, HighLevelChargedParticles.RAMPED_PROGRES_END);
+    const inversProgressArc = progress.sub(0.5).abs().mul(2);
 
     this.computeUpdate = Fn(() => {
-      const fieldLineId = instanceIndex.modInt(this.magneticFieldLines.highLevelFieldLines.count).toVar();
-      const incrementedProgress = progress.add(this.magneticFieldLines.highLevelFieldLines.speedsBuffer.element(fieldLineId)).mod(1).toVar();
+      const fieldLineId = instanceIndex.modInt(this.magneticFieldLines.lowAltitudeFieldLines.count).toVar();
+      const incrementedProgress = progress.add(this.magneticFieldLines.lowAltitudeFieldLines.speedsBuffer.element(fieldLineId)).mod(1).toVar();
       this.progressBuffer.element(instanceIndex).assign(incrementedProgress);
       this.positionBuffer
         .element(instanceIndex)
         .assign(
-          BezierFunctions.QUBIC_CURVE(
-            this.magneticFieldLines.highLevelFieldLines.controlPointBuffers[0].element(fieldLineId),
-            this.magneticFieldLines.highLevelFieldLines.controlPointBuffers[1].element(fieldLineId),
-            this.magneticFieldLines.highLevelFieldLines.controlPointBuffers[2].element(fieldLineId),
-            this.magneticFieldLines.highLevelFieldLines.controlPointBuffers[3].element(fieldLineId),
+          BezierFunctions.QUADRATIC_CURVE(
+            this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[0].element(fieldLineId),
+            this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[1].element(fieldLineId),
+            this.magneticFieldLines.lowAltitudeFieldLines.controlPointBuffers[2].element(fieldLineId),
             incrementedProgress
           )
         );
@@ -58,16 +55,16 @@ export class HighLevelChargedParticles extends InstancedMesh<PlaneGeometry, Spri
 
     this.material.positionNode = this.positionBuffer.element(instanceIndex);
     this.material.scaleNode = Fn(() => {
-      const scale = rampedProgress.toVar();
+      const scale = inversProgressArc.oneMinus().add(0.1).toVar();
       return vec3(scale, scale, scale);
     })();
     this.material.opacityNode = Fn(() => {
-      const opacity = rampedProgress.mul(0.2).toVar();
+      const opacity = inversProgressArc.toVar();
       return vec3(opacity, opacity, opacity);
     })();
 
     this.computeBoundingSphere();
-    this.boundingSphere!.radius = MagneticFieldLines.HIGH_LEVEL_RADIUS;
+    this.boundingSphere!.radius = MagneticFieldLines.LOW_ALTITUDE_RADIUS;
   }
 
   public applySettings(settings: Settings): void {

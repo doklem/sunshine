@@ -7,9 +7,9 @@ import { pass } from 'three/tsl';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { FireFountains } from './fire-fountains';
 import { Settings } from './settings';
-import { LowLevelChargedParticles } from './low-level-charged-particles';
+import { LowAltitudeChargedParticles } from './low-altitude-charged-particles';
 import { MagneticFieldLines } from './magnetic-field-lines';
-import { HighLevelChargedParticles } from './high-level-charged-particles';
+import { HighAltitudeChargedParticles } from './high-altitude-charged-particles';
 
 export class World {
 
@@ -22,8 +22,8 @@ export class World {
   private readonly magneticFieldLines: MagneticFieldLines;
 
   private fireFountains?: FireFountains;
-  private lowLevelChargedParticles?: LowLevelChargedParticles;
-  private highLevelChargedParticles?: HighLevelChargedParticles;
+  private lowAltitudeChargedParticles?: LowAltitudeChargedParticles;
+  private highAltitudeChargedParticles?: HighAltitudeChargedParticles;
   private surface?: Surface;
   private lastFrame = 0;
   private rotation = true;
@@ -56,11 +56,11 @@ export class World {
     const loader = new TextureLoader();
     const chargedParticleTexture = await loader.loadAsync('charged-particle.png');
 
-    this.lowLevelChargedParticles = new LowLevelChargedParticles(this.magneticFieldLines, chargedParticleTexture, 6000);
-    this.scene.add(this.lowLevelChargedParticles);
+    this.lowAltitudeChargedParticles = new LowAltitudeChargedParticles(this.magneticFieldLines, chargedParticleTexture, 6000);
+    this.scene.add(this.lowAltitudeChargedParticles);
 
-    this.highLevelChargedParticles = new HighLevelChargedParticles(this.magneticFieldLines, chargedParticleTexture, 4000);
-    this.scene.add(this.highLevelChargedParticles);
+    this.highAltitudeChargedParticles = new HighAltitudeChargedParticles(this.magneticFieldLines, chargedParticleTexture, 4000);
+    this.scene.add(this.highAltitudeChargedParticles);
 
     this.surface = await Surface.createAsync();
     this.scene.add(this.surface);
@@ -74,8 +74,8 @@ export class World {
   public applySettings(settings: Settings): void {
     this.bloomPass.strength.value = settings.bloomStrength;
     this.rotation = settings.rotation;
-    this.lowLevelChargedParticles?.applySettings(settings);
-    this.highLevelChargedParticles?.applySettings(settings);
+    this.lowAltitudeChargedParticles?.applySettings(settings);
+    this.highAltitudeChargedParticles?.applySettings(settings);
     this.fireFountains?.applySettings(settings);
     this.surface?.applySettings(settings);
   }
@@ -98,8 +98,8 @@ export class World {
     if (this.rotation) {
       this.scene.rotateY(delta * -0.00002);
     }
-    this.lowLevelChargedParticles?.onAnimationFrame(this.renderer);
-    this.highLevelChargedParticles?.onAnimationFrame(this.renderer);
+    this.lowAltitudeChargedParticles?.onAnimationFrame(this.renderer);
+    this.highAltitudeChargedParticles?.onAnimationFrame(this.renderer);
     if (this.bloomPass.strength.value > 0) {
       this.postProcessing.render();
     }

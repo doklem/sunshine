@@ -6,22 +6,22 @@ import { MagneticFieldLineSet } from './magnetic-field-line-set';
 export class MagneticFieldLines {
 
   private static readonly RADIUS = Surface.GEOMETRY_RADIUS * 0.9;
-  private static readonly HIGH_LEVEL_DISTANCE = 0.02;
-  private static readonly LOW_LEVEL_DISTANCE = 0.04;
+  private static readonly HIGH_ALTITUDE_DISTANCE = 0.02;
+  private static readonly LOW_ALTITUDE_DISTANCE = 0.04;
   private static readonly SPEED_MIN = 0.001;
   private static readonly SPEED_DELTA = 0.001;
 
-  public static readonly LOW_LEVEL_RADIUS = Surface.GEOMETRY_RADIUS * 1.4;
-  public static readonly HIGH_LEVEL_RADIUS = Surface.GEOMETRY_RADIUS * 1.6;
+  public static readonly LOW_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 1.4;
+  public static readonly HIGH_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 1.6;
 
-  public readonly lowLevelFieldLines: MagneticFieldLineSet;
-  public readonly highLevelFieldLines: MagneticFieldLineSet;
+  public readonly lowAltitudeFieldLines: MagneticFieldLineSet;
+  public readonly highAltitudeFieldLines: MagneticFieldLineSet;
 
   public constructor(public readonly countNorthPole: number, public readonly countSouthPole: number) {
     const northPolePositions: Vector3[] = MagneticFieldLines.fibonacciSphere(countNorthPole);
     const southPolePositions: Vector3[] = MagneticFieldLines.fibonacciSphere(countSouthPole);
-    const lowLevelConnections: Vector3[][] = [];
-    const highLevelConnections: Vector3[][] = [];
+    const lowAltitudeConnections: Vector3[][] = [];
+    const highAltitudeConnections: Vector3[][] = [];
     let distance: number;
 
     southPolePositions.forEach(southPole => {
@@ -36,19 +36,19 @@ export class MagneticFieldLines {
       });
 
       if (closestNorthPole) {
-        if (closestDistance < MagneticFieldLines.HIGH_LEVEL_DISTANCE) {
-          highLevelConnections.push([closestNorthPole, southPole]);
-        } else if (MagneticFieldLines.LOW_LEVEL_DISTANCE < closestDistance) {
-          lowLevelConnections.push([closestNorthPole, southPole]);
+        if (closestDistance < MagneticFieldLines.HIGH_ALTITUDE_DISTANCE) {
+          highAltitudeConnections.push([closestNorthPole, southPole]);
+        } else if (MagneticFieldLines.LOW_ALTITUDE_DISTANCE < closestDistance) {
+          lowAltitudeConnections.push([closestNorthPole, southPole]);
         }
       }
     });
 
-    this.lowLevelFieldLines = MagneticFieldLines.createLowLevelFieldLines(lowLevelConnections);
-    this.highLevelFieldLines = MagneticFieldLines.createHighLevelFieldLines(highLevelConnections);
+    this.lowAltitudeFieldLines = MagneticFieldLines.createLowAltitudeFieldLines(lowAltitudeConnections);
+    this.highAltitudeFieldLines = MagneticFieldLines.createHighAltitudeFieldLines(highAltitudeConnections);
   }
 
-  private static createLowLevelFieldLines(connections: Vector3[][]): MagneticFieldLineSet {
+  private static createLowAltitudeFieldLines(connections: Vector3[][]): MagneticFieldLineSet {
     const firstControlPoints = new Float32Array(connections.length * 3);
     const secondControlPoints = new Float32Array(firstControlPoints.length);
     const thridControlPoints = new Float32Array(firstControlPoints.length);
@@ -59,7 +59,7 @@ export class MagneticFieldLines {
 
     connections.forEach(connection => {
       firstControlPoints.set(connection[0].toArray(), offsetControlPoint);
-      secondControlPoint.lerpVectors(connection[0], connection[1], 0.5).normalize().multiplyScalar(MagneticFieldLines.LOW_LEVEL_RADIUS);
+      secondControlPoint.lerpVectors(connection[0], connection[1], 0.5).normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS);
       secondControlPoints.set(secondControlPoint.toArray(), offsetControlPoint);
       thridControlPoints.set(connection[1].toArray(), offsetControlPoint);
       offsetControlPoint += 3;
@@ -79,7 +79,7 @@ export class MagneticFieldLines {
     };
   }
 
-  private static createHighLevelFieldLines(connections: Vector3[][]): MagneticFieldLineSet {
+  private static createHighAltitudeFieldLines(connections: Vector3[][]): MagneticFieldLineSet {
     const firstControlPoints = new Float32Array(connections.length * 3);
     const secondControlPoints = new Float32Array(firstControlPoints.length);
     const thridControlPoints = new Float32Array(firstControlPoints.length);
@@ -91,11 +91,11 @@ export class MagneticFieldLines {
 
     connections.forEach(connection => {
       firstControlPoints.set(connection[0].toArray(), offsetControlPoint);
-      controlPoint.copy(connection[0]).normalize().multiplyScalar(MagneticFieldLines.LOW_LEVEL_RADIUS);
+      controlPoint.copy(connection[0]).normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS);
       secondControlPoints.set(controlPoint.toArray(), offsetControlPoint);
-      controlPoint.copy(connection[1]).normalize().multiplyScalar(MagneticFieldLines.LOW_LEVEL_RADIUS);
+      controlPoint.copy(connection[1]).normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS);
       thridControlPoints.set(controlPoint.toArray(), offsetControlPoint);
-      controlPoint.copy(connection[1]).normalize().multiplyScalar(MagneticFieldLines.HIGH_LEVEL_RADIUS);
+      controlPoint.copy(connection[1]).normalize().multiplyScalar(MagneticFieldLines.HIGH_ALTITUDE_RADIUS);
       fourthControlPoints.set(controlPoint.toArray(), offsetControlPoint);
       offsetControlPoint += 3;
 

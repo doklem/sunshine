@@ -6,9 +6,11 @@ import { WaveLength } from './wave-length';
 import { MagneticFieldLines } from './magnetic-field-lines';
 import { BezierFunctions } from './bezier-functions';
 
-export class LowLevelChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> {
+export class HighAltitudeChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> {
 
   private static readonly PARTICLE_SIZE = 0.1;
+  private static readonly RAMPED_PROGRES_START = 0.02;
+  private static readonly RAMPED_PROGRES_END = HighAltitudeChargedParticles.RAMPED_PROGRES_START + 0.1;
 
   private readonly positionBuffer: ShaderNodeObject<StorageBufferNode>;
   private readonly progressBuffer: ShaderNodeObject<StorageBufferNode>;
@@ -16,7 +18,7 @@ export class LowLevelChargedParticles extends InstancedMesh<PlaneGeometry, Sprit
 
   public constructor(private readonly magneticFieldLines: MagneticFieldLines, map: Texture, count: number) {
     super(
-      new PlaneGeometry(LowLevelChargedParticles.PARTICLE_SIZE, LowLevelChargedParticles.PARTICLE_SIZE),
+      new PlaneGeometry(HighAltitudeChargedParticles.PARTICLE_SIZE, HighAltitudeChargedParticles.PARTICLE_SIZE),
       new SpriteNodeMaterial({ blending: AdditiveBlending, map, depthWrite: false }),
       count
     );
@@ -35,19 +37,20 @@ export class LowLevelChargedParticles extends InstancedMesh<PlaneGeometry, Sprit
     this.progressBuffer.value.set(new Float32Array(initialProgress));
 
     const progress = this.progressBuffer.element(instanceIndex);
-    const inversProgressArc = progress.sub(0.5).abs().mul(2);
+    const rampedProgress = progress.smoothstep(HighAltitudeChargedParticles.RAMPED_PROGRES_START, HighAltitudeChargedParticles.RAMPED_PROGRES_END);
 
     this.computeUpdate = Fn(() => {
-      const fieldLineId = instanceIndex.modInt(this.magneticFieldLines.lowLevelFieldLines.count).toVar();
-      const incrementedProgress = progress.add(this.magneticFieldLines.lowLevelFieldLines.speedsBuffer.element(fieldLineId)).mod(1).toVar();
+      const fieldLineId = instanceIndex.modInt(this.magneticFieldLines.highAltitudeFieldLines.count).toVar();
+      const incrementedProgress = progress.add(this.magneticFieldLines.highAltitudeFieldLines.speedsBuffer.element(fieldLineId)).mod(1).toVar();
       this.progressBuffer.element(instanceIndex).assign(incrementedProgress);
       this.positionBuffer
         .element(instanceIndex)
         .assign(
-          BezierFunctions.QUADRATIC_CURVE(
-            this.magneticFieldLines.lowLevelFieldLines.controlPointBuffers[0].element(fieldLineId),
-            this.magneticFieldLines.lowLevelFieldLines.controlPointBuffers[1].element(fieldLineId),
-            this.magneticFieldLines.lowLevelFieldLines.controlPointBuffers[2].element(fieldLineId),
+          BezierFunctions.QUBIC_CURVE(
+            this.magneticFieldLines.highAltitudeFieldLines.controlPointBuffers[0].element(fieldLineId),
+            this.magneticFieldLines.highAltitudeFieldLines.controlPointBuffers[1].element(fieldLineId),
+            this.magneticFieldLines.highAltitudeFieldLines.controlPointBuffers[2].element(fieldLineId),
+            this.magneticFieldLines.highAltitudeFieldLines.controlPointBuffers[3].element(fieldLineId),
             incrementedProgress
           )
         );
@@ -55,16 +58,16 @@ export class LowLevelChargedParticles extends InstancedMesh<PlaneGeometry, Sprit
 
     this.material.positionNode = this.positionBuffer.element(instanceIndex);
     this.material.scaleNode = Fn(() => {
-      const scale = inversProgressArc.oneMinus().add(0.1).toVar();
+      const scale = rampedProgress.toVar();
       return vec3(scale, scale, scale);
     })();
     this.material.opacityNode = Fn(() => {
-      const opacity = inversProgressArc.toVar();
+      const opacity = rampedProgress.mul(0.2).toVar();
       return vec3(opacity, opacity, opacity);
     })();
 
     this.computeBoundingSphere();
-    this.boundingSphere!.radius = MagneticFieldLines.LOW_LEVEL_RADIUS;
+    this.boundingSphere!.radius = MagneticFieldLines.HIGH_ALTITUDE_RADIUS;
   }
 
   public applySettings(settings: Settings): void {

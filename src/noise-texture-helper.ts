@@ -1,10 +1,74 @@
-import { Data3DTexture, FloatType, LinearFilter, MathUtils, RedFormat, RepeatWrapping, RGBAFormat, RGFormat, Vector3 } from 'three';
+import { Data3DTexture, DataTexture, FloatType, LinearFilter, MathUtils, RedFormat, RepeatWrapping, RGBAFormat, RGFormat, Vector3 } from 'three';
 import { SimplexNoise } from 'three/examples/jsm/Addons.js';
 import { RandomValues } from './random-values';
 
 export class NoiseTextureHelper {
 
   private readonly noise = new SimplexNoise();
+
+  public createSimplexTexture2D(
+    size: number,
+    seam: number,
+    frequency: number,
+    amplitude: number,
+    octaves: number,
+    components: number,
+    adapt?: (value: number, component: number) => number): DataTexture {
+    const seamSize = Math.round(size * seam);
+    const seamSizeReciprocal = 1 / seamSize;
+    const data = new Float32Array(size * size * components);
+    let offset = 0;
+    let value: number;
+
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        for (let w = 0; w < components; w++) {
+          if (x < seamSize && seamSize <= y) {
+
+            // Linear interpolation
+            value = MathUtils.lerp(
+              this.noise3dWithOctaves(x + size, y, w, frequency, amplitude, octaves),
+              this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves),
+              x * seamSizeReciprocal
+            );
+          } else if (seamSize <= x && y < seamSize) {
+
+            // Linear interpolation
+            value = MathUtils.lerp(
+              this.noise3dWithOctaves(x, y + size, w, frequency, amplitude, octaves),
+              this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves),
+              y * seamSizeReciprocal
+            );
+          } else if (x < seamSize && y < seamSize) {
+
+            // Bilinear interpolation
+            value = MathUtils.lerp(
+              MathUtils.lerp(
+                this.noise3dWithOctaves(x + size, y + size, w, frequency, amplitude, octaves),
+                this.noise3dWithOctaves(x + size, y, w, frequency, amplitude, octaves),
+                y * seamSizeReciprocal
+              ),
+              MathUtils.lerp(
+                this.noise3dWithOctaves(x, y + size, w, frequency, amplitude, octaves),
+                this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves),
+                y * seamSizeReciprocal
+              ),
+              x * seamSizeReciprocal
+            );
+          } else {
+            
+            // No interpolation
+            value = this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves);
+          }
+          
+          data[offset] = adapt ? adapt(value, w) : value;
+          offset++;
+        }
+      }
+    }
+
+    return NoiseTextureHelper.configureTexture(new DataTexture(data, size, size), components);
+  }
 
   public createSimplexTexture3D(
     size: number,
@@ -193,6 +257,16 @@ export class NoiseTextureHelper {
     return texture;
   }
 
+  private noise3dWithOctaves(x: number, y: number, w: number, frequency: number, amplitude: number, octaves: number): number {
+    let value = 0;
+    for (let i = 0; i < octaves; i++) {
+      value += this.noise.noise3d(x * frequency, y * frequency, w) * amplitude;
+      frequency *= 2;
+      amplitude *= 0.5;
+    }
+    return value;
+  }
+
   private noise4dWithOctaves(x: number, y: number, z: number, w: number, frequency: number, amplitude: number, octaves: number): number {
     let value = 0;
     for (let i = 0; i < octaves; i++) {
@@ -225,7 +299,7 @@ export class NoiseTextureHelper {
     texture.wrapS = RepeatWrapping;
     texture.wrapT = RepeatWrapping;
     if (texture instanceof Data3DTexture) {
-    texture.wrapR = RepeatWrapping;
+      texture.wrapR = RepeatWrapping;
     }
     texture.needsUpdate = true;
     return texture;

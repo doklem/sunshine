@@ -85,7 +85,7 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
   }
 
   public applySettings(settings: Settings): void {
-    this.visible = settings.instrument === Instrument.AIA_304_A;
+    this.visible = settings.instrument === Instrument.DEBUG_CHARGED_PARTICLES;
   }
 
   public onAnimationFrame(renderer: WebGPURenderer): void {

@@ -5,7 +5,6 @@ import { PostProcessing, WebGPURenderer } from 'three/webgpu';
 import { Surface } from './surface';
 import { pass } from 'three/tsl';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
-import { FireFountains } from './fire-fountains';
 import { Settings } from './settings';
 import { MagneticFieldLines } from './magnetic-field-lines';
 import { NoiseTextureHelper } from './noise-texture-helper';
@@ -24,8 +23,7 @@ export class World {
   private readonly noiseHelper: NoiseTextureHelper;
   private readonly chargedParticles: ChargedParticles[];
   private readonly surfaceFlares: SurfaceFlares[];
-
-  private fireFountains?: FireFountains;
+  
   private surface?: Surface;
   private lastFrame = 0;
   private rotation = true;
@@ -104,7 +102,6 @@ export class World {
     this.bloomPass.strength.value = settings.bloomStrength;
     this.rotation = settings.rotation;
     this.chargedParticles.forEach(chargedParticels => chargedParticels.applySettings(settings));
-    this.fireFountains?.applySettings(settings);
     this.surface?.applySettings(settings);
     this.surfaceFlares.forEach(flare => flare.applySettings(settings));
   }

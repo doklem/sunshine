@@ -27,13 +27,13 @@ export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
         positionLocal.x,
         positionLocal.y.mul(scale.mul(0.8)),
         positionLocal.z.add(
-          arcUV.x.mul(arcUV.y).mul(scale).mul(0.2)
+          arcUV.x.mul(arcUV.y).mul(scale).mul(0.3)
         )
       ).toVar();
 
       const offset = texture(
         vertexShaderNoise,
-        position.xy.mul(0.01).add(vec2(time.mul(0.01), 0))
+        uv().mul(0.001).add(vec2(time.mul(0.005), 0))
       ).xyz.mul(distanceToSource.oneMinus());
 
       return position.add(offset);
@@ -60,7 +60,7 @@ export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
   }
 
   public applySettings(settings: Settings): void {
-    this.visible = settings.instrument === Instrument.DEBUG_SURFACE_FLARE;
+    this.visible = settings.instrument === Instrument.AIA_304_A;
   }
 
   public static adpatFragmentNoise(value: number, _: number): number {
@@ -72,6 +72,6 @@ export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
   }
 
   public static adpatVertexNoise(value: number, _: number): number {
-    return value * 0.05;
+    return value * 0.1;
   }
 }

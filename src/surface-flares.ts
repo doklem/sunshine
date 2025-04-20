@@ -1,7 +1,7 @@
 import { InstancedMesh, PlaneGeometry } from 'three';
 import { DoubleSide, NodeMaterial, Texture } from 'three/webgpu';
 import { Settings } from './settings';
-import { WaveLength } from './wave-length';
+import { Instrument } from './instrument';
 import { float, Fn, instanceIndex, PI, positionLocal, texture, time, uv, vec2, vec3, vec4 } from 'three/tsl';
 
 export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
@@ -60,7 +60,7 @@ export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
   }
 
   public applySettings(settings: Settings): void {
-    this.visible = settings.waveLength === WaveLength.DEBUG_SURFACE_FLARE;
+    this.visible = settings.instrument === Instrument.DEBUG_SURFACE_FLARE;
   }
 
   public static adpatFragmentNoise(value: number, _: number): number {

@@ -3,7 +3,7 @@ import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
 import { cameraPosition, float, Fn, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
 import { NodeMaterial, UniformNode } from 'three/webgpu';
 import { Settings } from './settings';
-import { WaveLength } from './wave-length';
+import { Instrument } from './instrument';
 
 export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
 
@@ -72,14 +72,14 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
 
   public applySettings(settings: Settings): void {
     this.visible = settings.surface;
-    switch (settings.waveLength) {
-      case WaveLength.AIA_304_A:
+    switch (settings.instrument) {
+      case Instrument.AIA_304_A:
         this.material.outputNode = this.renderAIA304A();
         break;
-      case WaveLength.HMI_INTENSITYGRAM:
+      case Instrument.HMI_INTENSITYGRAM:
         this.material.outputNode = this.renderHMIItensitygram();
         break;
-      case WaveLength.HMI_INTENSITYGRAM_COLORED:
+      case Instrument.HMI_INTENSITYGRAM_COLORED:
         this.material.outputNode = this.renderHMIItensitygramColored();
         break;
     }

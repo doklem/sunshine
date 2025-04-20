@@ -6,7 +6,7 @@ import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
 import { BezierFunctions } from './bezier-functions';
 import { MagneticFieldLineSet } from './magnetic-field-line-set';
 import { Settings } from './settings';
-import { WaveLength } from './wave-length';
+import { Instrument } from './instrument';
 import { Surface } from './surface';
 
 export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> {
@@ -85,7 +85,7 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
   }
 
   public applySettings(settings: Settings): void {
-    this.visible = settings.waveLength === WaveLength.AIA_304_A;
+    this.visible = settings.instrument === Instrument.AIA_304_A;
   }
 
   public onAnimationFrame(renderer: WebGPURenderer): void {

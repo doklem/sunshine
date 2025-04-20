@@ -2,7 +2,7 @@ import { BufferAttribute, BufferGeometry, DoubleSide, InstancedMesh, Matrix4, Qu
 import { attribute, Fn, mix, vec4 } from 'three/tsl';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 import { Settings } from './settings';
-import { WaveLength } from './wave-length';
+import { Instrument } from './instrument';
 
 export class FireFountains extends InstancedMesh<BufferGeometry, MeshBasicNodeMaterial> {
 
@@ -108,6 +108,6 @@ export class FireFountains extends InstancedMesh<BufferGeometry, MeshBasicNodeMa
   }
 
   public applySettings(settings: Settings): void {
-    this.visible = settings.waveLength === WaveLength.AIA_304_A;
+    this.visible = settings.instrument === Instrument.AIA_304_A;
   }
 }

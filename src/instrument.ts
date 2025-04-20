@@ -1,4 +1,4 @@
-export enum WaveLength {
+export enum Instrument {
   HMI_INTENSITYGRAM,
   HMI_INTENSITYGRAM_COLORED,
   AIA_304_A,

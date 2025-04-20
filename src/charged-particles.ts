@@ -1,10 +1,8 @@
 import { InstancedMesh, PlaneGeometry } from 'three';
 import { AdditiveBlending, SpriteNodeMaterial, StorageBufferNode, Texture, Vector3, WebGPURenderer } from 'three/webgpu';
 import { MagneticFieldLines } from './magnetic-field-lines';
-import { float, Fn, instancedArray, instanceIndex, int, ShaderNodeObject, texture3D, time, vec3 } from 'three/tsl';
+import { float, Fn, instancedArray, instanceIndex, int, mix, ShaderNodeObject, texture3D, time, vec3 } from 'three/tsl';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
-import { BezierFunctions } from './bezier-functions';
-import { MagneticFieldLineSet } from './magnetic-field-line-set';
 import { Settings } from './settings';
 import { Instrument } from './instrument';
 import { Surface } from './surface';
@@ -22,8 +20,7 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
   public constructor(
     magneticFieldLines: MagneticFieldLines,
     map: Texture,
-    count: number,
-    lowAtitude: boolean) {
+    count: number) {
     super(
       ChargedParticles.GEOMETRY,
       new SpriteNodeMaterial({ blending: AdditiveBlending, map, depthWrite: false }),
@@ -43,25 +40,27 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
     this.progressBuffer = instancedArray(count, 'float');
     this.progressBuffer.value.set(new Float32Array(initialProgress));
 
-    const fieldLines: MagneticFieldLineSet = lowAtitude ? magneticFieldLines.lowAltitudeFieldLines : magneticFieldLines.highAltitudeFieldLines;
+    const fieldLineId = instanceIndex.mod(int(magneticFieldLines.count)).toVar();
+    const incrementedProgress = this.progressBuffer.element(instanceIndex).add(magneticFieldLines.speedsBuffer.element(fieldLineId)).mod(1).toVar();
 
-    const fieldLineId = instanceIndex.mod(int(fieldLines.count)).toVar();
-    const incrementedProgress = this.progressBuffer.element(instanceIndex).add(fieldLines.speedsBuffer.element(fieldLineId)).mod(1).toVar();
 
-    const position = lowAtitude
-      ? BezierFunctions.QUADRATIC_CURVE(
-        fieldLines.controlPointBuffers[0].element(fieldLineId),
-        fieldLines.controlPointBuffers[1].element(fieldLineId),
-        fieldLines.controlPointBuffers[2].element(fieldLineId),
-        incrementedProgress
-      ).toVar()
-      : BezierFunctions.QUBIC_CURVE(
-        fieldLines.controlPointBuffers[0].element(fieldLineId),
-        fieldLines.controlPointBuffers[1].element(fieldLineId),
-        fieldLines.controlPointBuffers[2].element(fieldLineId),
-        fieldLines.controlPointBuffers[3].element(fieldLineId),
-        incrementedProgress
-      ).toVar();
+    const qubicBezier = Fn<[]>
+      (() => {
+        const firstControlPoint = magneticFieldLines.controlPointBuffers[0].element(fieldLineId);
+        const secondControlPoint = magneticFieldLines.controlPointBuffers[1].element(fieldLineId);
+        const thirdControlPoint = magneticFieldLines.controlPointBuffers[2].element(fieldLineId);
+        const fourthControlPoint = magneticFieldLines.controlPointBuffers[3].element(fieldLineId);
+
+        const firstLowerPosition = mix(firstControlPoint, secondControlPoint, incrementedProgress);
+        const secondLowerPosition = mix(secondControlPoint, thirdControlPoint, incrementedProgress);
+        const thridLowerPosition = mix(thirdControlPoint, fourthControlPoint, incrementedProgress);
+
+        const firstHigherPosition = mix(firstLowerPosition, secondLowerPosition, incrementedProgress);
+        const secondHigherPosition = mix(secondLowerPosition, thridLowerPosition, incrementedProgress);
+        return mix(firstHigherPosition, secondHigherPosition, incrementedProgress);
+      });
+
+    const position = qubicBezier().toVar();
 
     const height = position.length().toVar();
 
@@ -81,7 +80,7 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
     this.material.opacityNode = float(0.25);
 
     this.computeBoundingSphere();
-    this.boundingSphere!.radius = lowAtitude ? MagneticFieldLines.LOW_ALTITUDE_RADIUS : MagneticFieldLines.HIGH_ALTITUDE_RADIUS;
+    this.boundingSphere!.radius = MagneticFieldLines.HIGH_ALTITUDE_RADIUS;
   }
 
   public applySettings(settings: Settings): void {

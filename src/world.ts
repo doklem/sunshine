@@ -21,10 +21,10 @@ export class World {
   private readonly bloomPass: BloomNode;
   private readonly magneticFieldLines: MagneticFieldLines;
   private readonly noiseHelper: NoiseTextureHelper;
-  private readonly chargedParticles: ChargedParticles[];
   private readonly surfaceFlares: SurfaceFlares[];
   
   private surface?: Surface;
+  private chargedParticles?: ChargedParticles;
   private lastFrame = 0;
   private rotation = true;
 
@@ -45,7 +45,6 @@ export class World {
 
     this.noiseHelper = new NoiseTextureHelper();
     this.magneticFieldLines = new MagneticFieldLines(8, 500, this.noiseHelper.createSimplexTexture3D(32, 0.25, 1 / 32, 1, 3, 4));
-    this.chargedParticles = [];
     this.surfaceFlares = [];
 
     this.postProcessing = new PostProcessing(this.renderer);
@@ -59,13 +58,8 @@ export class World {
     const loader = new TextureLoader();
     const chargedParticleTexture = await loader.loadAsync('charged-particle.png');
 
-    let chargedParticles = new ChargedParticles(this.magneticFieldLines, chargedParticleTexture, 7000, true);
-    this.chargedParticles.push(chargedParticles);
-    this.scene.add(chargedParticles);
-
-    chargedParticles = new ChargedParticles(this.magneticFieldLines, chargedParticleTexture, 3000, false);
-    this.chargedParticles.push(chargedParticles);
-    this.scene.add(chargedParticles);
+    this.chargedParticles = new ChargedParticles(this.magneticFieldLines, chargedParticleTexture, 10000);
+    this.scene.add(this.chargedParticles);
 
     this.surface = new Surface(
       this.noiseHelper.createVoronoiTexture3D(64, 1),
@@ -101,7 +95,7 @@ export class World {
   public applySettings(settings: Settings): void {
     this.bloomPass.strength.value = settings.bloomStrength;
     this.rotation = settings.rotation;
-    this.chargedParticles.forEach(chargedParticels => chargedParticels.applySettings(settings));
+    this.chargedParticles?.applySettings(settings);
     this.surface?.applySettings(settings);
     this.surfaceFlares.forEach(flare => flare.applySettings(settings));
   }
@@ -124,7 +118,7 @@ export class World {
     if (this.rotation) {
       this.scene.rotateY(delta * -0.00002);
     }
-    this.chargedParticles.forEach(chargedParticels => chargedParticels.onAnimationFrame(this.renderer));
+    this.chargedParticles?.onAnimationFrame(this.renderer);
     if (this.bloomPass.strength.value > 0) {
       this.postProcessing.render();
     }

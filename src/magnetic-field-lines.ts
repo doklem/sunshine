@@ -1,7 +1,7 @@
 import { Data3DTexture, Vector3 } from 'three';
-import { instancedArray } from 'three/tsl';
+import { instancedArray, ShaderNodeObject } from 'three/tsl';
 import { Surface } from './surface';
-import { MagneticFieldLineSet } from './magnetic-field-line-set';
+import { StorageBufferNode } from 'three/webgpu';
 
 export class MagneticFieldLines {
 
@@ -13,8 +13,9 @@ export class MagneticFieldLines {
   public static readonly LOW_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 1.4;
   public static readonly HIGH_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 1.6;
 
-  public readonly lowAltitudeFieldLines: MagneticFieldLineSet;
-  public readonly highAltitudeFieldLines: MagneticFieldLineSet;
+  public readonly count: number;
+  public readonly speedsBuffer: ShaderNodeObject<StorageBufferNode>;
+  public readonly controlPointBuffers: ShaderNodeObject<StorageBufferNode>[];
 
   public constructor(
     countNorthPole: number,
@@ -46,75 +47,55 @@ export class MagneticFieldLines {
       }
     });
 
-    this.lowAltitudeFieldLines = MagneticFieldLines.createLowAltitudeFieldLines(lowAltitudeConnections);
-    this.highAltitudeFieldLines = MagneticFieldLines.createHighAltitudeFieldLines(highAltitudeConnections);
-  }
-
-  private static createLowAltitudeFieldLines(connections: Vector3[][]): MagneticFieldLineSet {
-    const firstControlPoints = new Float32Array(connections.length * 3);
-    const secondControlPoints = new Float32Array(firstControlPoints.length);
-    const thridControlPoints = new Float32Array(firstControlPoints.length);
-    const speeds = new Float32Array(connections.length);
-    const secondControlPoint = new Vector3();
-    let vectorOffset = 0;
-    let scalarOffset = 0;
-
-    connections.forEach(connection => {
-      firstControlPoints.set(connection[0].toArray(), vectorOffset);
-      secondControlPoint.lerpVectors(connection[0], connection[1], 0.5).normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS);
-      secondControlPoints.set(secondControlPoint.toArray(), vectorOffset);
-      thridControlPoints.set(connection[1].toArray(), vectorOffset);
-      vectorOffset += 3;
-
-      speeds.set([Math.random() * MagneticFieldLines.SPEED_DELTA + MagneticFieldLines.SPEED_MIN], scalarOffset);
-      scalarOffset++;
-    });
-
-    return {
-      count: connections.length,
-      speedsBuffer: instancedArray(speeds, 'float'),
-      controlPointBuffers: [
-        instancedArray(firstControlPoints, 'vec3'),
-        instancedArray(secondControlPoints, 'vec3'),
-        instancedArray(thridControlPoints, 'vec3')
-      ]
-    };
-  }
-
-  private static createHighAltitudeFieldLines(connections: Vector3[][]): MagneticFieldLineSet {
-    const firstControlPoints = new Float32Array(connections.length * 3);
+    this.count = lowAltitudeConnections.length + highAltitudeConnections.length;
+    const speeds = new Float32Array(this.count);    
+    const firstControlPoints = new Float32Array(speeds.length * 3);
     const secondControlPoints = new Float32Array(firstControlPoints.length);
     const thridControlPoints = new Float32Array(firstControlPoints.length);
     const fourthControlPoints = new Float32Array(firstControlPoints.length);
-    const speeds = new Float32Array(connections.length);
-    const controlPoint = new Vector3();
     let vectorOffset = 0;
     let scalarOffset = 0;
 
-    connections.forEach(connection => {
-      firstControlPoints.set(connection[0].toArray(), vectorOffset);
-      controlPoint.copy(connection[0]).normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS);
-      secondControlPoints.set(controlPoint.toArray(), vectorOffset);
-      controlPoint.copy(connection[1]).normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS);
-      thridControlPoints.set(controlPoint.toArray(), vectorOffset);
-      controlPoint.copy(connection[1]).normalize().multiplyScalar(MagneticFieldLines.HIGH_ALTITUDE_RADIUS);
-      fourthControlPoints.set(controlPoint.toArray(), vectorOffset);
+    lowAltitudeConnections.forEach(connection => {
+      const controlPoints = MagneticFieldLines.createControlPoints(connection[0], connection[1], true);
+      firstControlPoints.set(controlPoints[0].toArray(), vectorOffset);
+      secondControlPoints.set(controlPoints[1].toArray(), vectorOffset);
+      thridControlPoints.set(controlPoints[2].toArray(), vectorOffset);
+      fourthControlPoints.set(controlPoints[3].toArray(), vectorOffset);
       vectorOffset += 3;
 
       speeds.set([Math.random() * MagneticFieldLines.SPEED_DELTA + MagneticFieldLines.SPEED_MIN], scalarOffset);
       scalarOffset++;
     });
 
-    return {
-      count: connections.length,
-      speedsBuffer: instancedArray(speeds, 'float'),
-      controlPointBuffers: [
-        instancedArray(firstControlPoints, 'vec3'),
-        instancedArray(secondControlPoints, 'vec3'),
-        instancedArray(thridControlPoints, 'vec3'),
-        instancedArray(fourthControlPoints, 'vec3')
-      ]
-    };
+    highAltitudeConnections.forEach(connection => {
+      const controlPoints = MagneticFieldLines.createControlPoints(connection[0], connection[1], false);
+      firstControlPoints.set(controlPoints[0].toArray(), vectorOffset);
+      secondControlPoints.set(controlPoints[1].toArray(), vectorOffset);
+      thridControlPoints.set(controlPoints[2].toArray(), vectorOffset);
+      fourthControlPoints.set(controlPoints[3].toArray(), vectorOffset);
+      vectorOffset += 3;
+
+      speeds.set([Math.random() * MagneticFieldLines.SPEED_DELTA + MagneticFieldLines.SPEED_MIN], scalarOffset);
+      scalarOffset++;
+    });
+
+    this.speedsBuffer = instancedArray(speeds, 'float');
+    this.controlPointBuffers = [
+      instancedArray(firstControlPoints, 'vec3'),
+      instancedArray(secondControlPoints, 'vec3'),
+      instancedArray(thridControlPoints, 'vec3'),
+      instancedArray(fourthControlPoints, 'vec3')
+    ];
+  }
+
+  private static createControlPoints(start: Vector3, end: Vector3, backToSurface: boolean): Vector3[] {
+    return [
+      start.clone(),
+      start.clone().normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS),
+      end.clone().normalize().multiplyScalar(MagneticFieldLines.LOW_ALTITUDE_RADIUS),
+      backToSurface ? end.clone() : end.clone().normalize().multiplyScalar(MagneticFieldLines.HIGH_ALTITUDE_RADIUS)
+    ]
   }
 
   private static fibonacciSphere(count: number, height: number): Vector3[] {

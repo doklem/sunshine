@@ -10,14 +10,14 @@
     "ci": "pnpm install && tsc && vite build"
   },
   "devDependencies": {
-    "@types/three": "^0.174.0",
-    "typescript": "~5.7.2",
-    "vite": "^6.2.0"
+    "@types/three": "^0.175.0",
+    "typescript": "~5.7.3",
+    "vite": "^6.3.2"
   },
   "dependencies": {
     "lil-gui": "^0.20.0",
     "stats-gl": "^3.6.0",
-    "three": "^0.174.0"
+    "three": "^0.175.0"
   },
   "packageManager": "pnpm@9.15.0"
 }

@@ -7,10 +7,9 @@ import { pass } from 'three/tsl';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { FireFountains } from './fire-fountains';
 import { Settings } from './settings';
-import { LowAltitudeChargedParticles } from './low-altitude-charged-particles';
 import { MagneticFieldLines } from './magnetic-field-lines';
-import { HighAltitudeChargedParticles } from './high-altitude-charged-particles';
 import { NoiseTextureHelper } from './noise-texture-helper';
+import { ChargedParticles } from './charged-particles';
 
 export class World {
 
@@ -22,10 +21,9 @@ export class World {
   private readonly bloomPass: BloomNode;
   private readonly magneticFieldLines: MagneticFieldLines;
   private readonly noiseHelper: NoiseTextureHelper;
+  private readonly chargedParticles: ChargedParticles[];
 
   private fireFountains?: FireFountains;
-  private lowAltitudeChargedParticles?: LowAltitudeChargedParticles;
-  private highAltitudeChargedParticles?: HighAltitudeChargedParticles;
   private surface?: Surface;
   private lastFrame = 0;
   private rotation = true;
@@ -47,6 +45,7 @@ export class World {
 
     this.noiseHelper = new NoiseTextureHelper();
     this.magneticFieldLines = new MagneticFieldLines(8, 500, this.noiseHelper.createSimplexTexture3D(32, 0.25, 1 / 32, 1, 3, 4));
+    this.chargedParticles = [];
 
     this.postProcessing = new PostProcessing(this.renderer);
     const scenePass = pass(this.scene, this.camera);
@@ -59,11 +58,13 @@ export class World {
     const loader = new TextureLoader();
     const chargedParticleTexture = await loader.loadAsync('charged-particle.png');
 
-    this.lowAltitudeChargedParticles = new LowAltitudeChargedParticles(this.magneticFieldLines, chargedParticleTexture, 6000);
-    this.scene.add(this.lowAltitudeChargedParticles);
+    let chargedParticles = new ChargedParticles(this.magneticFieldLines, chargedParticleTexture, 7000, true);
+    this.chargedParticles.push(chargedParticles);
+    this.scene.add(chargedParticles);
 
-    this.highAltitudeChargedParticles = new HighAltitudeChargedParticles(this.magneticFieldLines, chargedParticleTexture, 4000);
-    this.scene.add(this.highAltitudeChargedParticles);
+    chargedParticles = new ChargedParticles(this.magneticFieldLines, chargedParticleTexture, 3000, false);
+    this.chargedParticles.push(chargedParticles);
+    this.scene.add(chargedParticles);
 
     this.surface = new Surface(
       this.noiseHelper.createVoronoiTexture3D(64, 1),
@@ -82,8 +83,7 @@ export class World {
   public applySettings(settings: Settings): void {
     this.bloomPass.strength.value = settings.bloomStrength;
     this.rotation = settings.rotation;
-    this.lowAltitudeChargedParticles?.applySettings(settings);
-    this.highAltitudeChargedParticles?.applySettings(settings);
+    this.chargedParticles.forEach(chargedParticels => chargedParticels.applySettings(settings));
     this.fireFountains?.applySettings(settings);
     this.surface?.applySettings(settings);
   }
@@ -106,8 +106,7 @@ export class World {
     if (this.rotation) {
       this.scene.rotateY(delta * -0.00002);
     }
-    this.lowAltitudeChargedParticles?.onAnimationFrame(this.renderer);
-    this.highAltitudeChargedParticles?.onAnimationFrame(this.renderer);
+    this.chargedParticles.forEach(chargedParticels => chargedParticels.onAnimationFrame(this.renderer));
     if (this.bloomPass.strength.value > 0) {
       this.postProcessing.render();
     }

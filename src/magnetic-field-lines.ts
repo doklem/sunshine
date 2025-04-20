@@ -7,7 +7,6 @@ export class MagneticFieldLines {
 
   private static readonly BASE_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 0.9;
   private static readonly HIGH_ALTITUDE_DISTANCE = 0.02;
-  private static readonly LOW_ALTITUDE_DISTANCE = 0.04;
   private static readonly SPEED_MIN = 0.001;
   private static readonly SPEED_DELTA = 0.001;
 
@@ -21,8 +20,8 @@ export class MagneticFieldLines {
     countNorthPole: number,
     countSouthPole: number,
     public readonly distortionTexture: Data3DTexture) {
-    const northPolePositions: Vector3[] = MagneticFieldLines.fibonacciSphere(countNorthPole);
-    const southPolePositions: Vector3[] = MagneticFieldLines.fibonacciSphere(countSouthPole);
+    const northPolePositions: Vector3[] = MagneticFieldLines.fibonacciSphere(countNorthPole, MagneticFieldLines.BASE_ALTITUDE_RADIUS);
+    const southPolePositions: Vector3[] = MagneticFieldLines.fibonacciSphere(countSouthPole, Surface.GEOMETRY_RADIUS);
     const lowAltitudeConnections: Vector3[][] = [];
     const highAltitudeConnections: Vector3[][] = [];
     let distance: number;
@@ -41,7 +40,7 @@ export class MagneticFieldLines {
       if (closestNorthPole) {
         if (closestDistance < MagneticFieldLines.HIGH_ALTITUDE_DISTANCE) {
           highAltitudeConnections.push([closestNorthPole, southPole]);
-        } else if (MagneticFieldLines.LOW_ALTITUDE_DISTANCE < closestDistance) {
+        } else {
           lowAltitudeConnections.push([closestNorthPole, southPole]);
         }
       }
@@ -118,7 +117,7 @@ export class MagneticFieldLines {
     };
   }
 
-  private static fibonacciSphere(count: number): Vector3[] {
+  private static fibonacciSphere(count: number, height: number): Vector3[] {
     const positions: Vector3[] = [];
     positions.length = count;
     const phi = Math.PI * (Math.sqrt(5) - 1); // Golden angle
@@ -131,7 +130,7 @@ export class MagneticFieldLines {
       y = 1 - i * doubleCountReciprocal;
       radius = Math.sqrt(1 - y * y);
       theta = phi * i;
-      positions[i] = new Vector3(Math.cos(theta) * radius, y, Math.sin(theta) * radius).multiplyScalar(MagneticFieldLines.BASE_ALTITUDE_RADIUS);
+      positions[i] = new Vector3(Math.cos(theta) * radius, y, Math.sin(theta) * radius).multiplyScalar(height);
     }
 
     return positions;

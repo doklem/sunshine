@@ -138,7 +138,7 @@ export class NoiseTextureHelper {
       }
     }
 
-    return NoiseTextureHelper.configureTo3dValue(new Data3DTexture(data, size, size, size), components);
+    return NoiseTextureHelper.configureTexture(new Data3DTexture(data, size, size, size), components);
   }
 
   public createVoronoiTexture3D(size: number, volumeSize: number): Data3DTexture {
@@ -177,7 +177,7 @@ export class NoiseTextureHelper {
       }
     }
 
-    return NoiseTextureHelper.configureTo3dValue(new Data3DTexture(data, size, size, size), 1);
+    return NoiseTextureHelper.configureTexture(new Data3DTexture(data, size, size, size), 1);
   }
 
   public createWhiteNoiseTexture3D(size: number): Data3DTexture {
@@ -203,7 +203,7 @@ export class NoiseTextureHelper {
     return value;
   }
 
-  private static configureTo3dValue(texture: Data3DTexture, components: number): Data3DTexture {
+  private static configureTexture<TTexture extends DataTexture | Data3DTexture>(texture: TTexture, components: number): TTexture {
     switch (components) {
       case 1:
         texture.format = RedFormat;
@@ -216,13 +216,17 @@ export class NoiseTextureHelper {
       case 4:
         texture.format = RGBAFormat;
         break;
+      default:
+        throw new Error('Invalid number of color channels. Only 1, 2 or 4 are supported.');
     }
     texture.type = FloatType;
     texture.minFilter = LinearFilter;
     texture.magFilter = LinearFilter;
     texture.wrapS = RepeatWrapping;
     texture.wrapT = RepeatWrapping;
+    if (texture instanceof Data3DTexture) {
     texture.wrapR = RepeatWrapping;
+    }
     texture.needsUpdate = true;
     return texture;
   }

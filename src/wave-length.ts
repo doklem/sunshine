@@ -1,5 +1,5 @@
 export enum WaveLength {
   HMI_INTENSITYGRAM,
   HMI_INTENSITYGRAM_COLORED,
-  AIA_304_A
+  AIA_304_A,
 }

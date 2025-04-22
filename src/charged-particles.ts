@@ -1,16 +1,14 @@
 import { InstancedMesh, PlaneGeometry } from 'three';
 import { AdditiveBlending, SpriteNodeMaterial, StorageBufferNode, Texture, Vector3, WebGPURenderer } from 'three/webgpu';
 import { MagneticFieldLines_OLD } from './magnetic-field-lines_OLD';
-import { float, Fn, instancedArray, instanceIndex, int, mix, ShaderNodeObject, texture3D, time, vec3 } from 'three/tsl';
+import { float, Fn, instancedArray, instanceIndex, int, mix, ShaderNodeObject, vec3 } from 'three/tsl';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
-import { Settings } from './settings';
 import { Surface } from './surface';
 
 export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> {
 
   private static readonly PARTICLE_SIZE = 0.1;
   private static readonly GEOMETRY = new PlaneGeometry(ChargedParticles.PARTICLE_SIZE, ChargedParticles.PARTICLE_SIZE);
-  private static readonly OFFSET_STRENGTH = 0.2;
 
   private readonly positionBuffer: ShaderNodeObject<StorageBufferNode>;
   private readonly progressBuffer: ShaderNodeObject<StorageBufferNode>;
@@ -65,10 +63,9 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
 
     this.computeUpdate = Fn(() => {
       this.progressBuffer.element(instanceIndex).assign(incrementedProgress);
-      const offset = texture3D(magneticFieldLines.distortionTexture, position.mul(time.mul(0.1).sin()), int(0)).rgb.mul(ChargedParticles.OFFSET_STRENGTH);
       this.positionBuffer
         .element(instanceIndex)
-        .assign(position/*.add(offset)*/.normalize().mul(height));
+        .assign(position.normalize().mul(height));
     });
 
     this.material.positionNode = this.positionBuffer.element(instanceIndex);
@@ -80,10 +77,6 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
 
     this.computeBoundingSphere();
     this.boundingSphere!.radius = MagneticFieldLines_OLD.HIGH_ALTITUDE_RADIUS;
-  }
-
-  public applySettings(settings: Settings): void {
-    this.visible = settings.particles;
   }
 
   public onAnimationFrame(renderer: WebGPURenderer): void {

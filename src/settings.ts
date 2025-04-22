@@ -9,7 +9,6 @@ export class Settings {
   public bloomStrength = 0;
   public surface = true;
   public rotation = true;
-  public particles = true;
 
   public constructor(onFinishedChange: () => void) {
     this.gui.onFinishChange(() => onFinishedChange());
@@ -25,6 +24,5 @@ export class Settings {
     this.gui.add(this, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');
     this.gui.add(this, 'surface').name('Surface');
     this.gui.add(this, 'rotation').name('Rotation')
-    this.gui.add(this, 'particles').name('Particles');
   }
 }

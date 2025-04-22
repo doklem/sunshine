@@ -68,7 +68,8 @@ export class World {
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
     this.surfaceFlares = new SurfaceFlares(
-      this.magneticFieldLines,
+      this.magneticFieldLines,      
+      this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4),
       flareFragmentNoise
     );
     this.scene.add(this.surfaceFlares);

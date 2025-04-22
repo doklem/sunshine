@@ -10,7 +10,7 @@ export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
 
   private static readonly GEOMETRY = new PlaneGeometry(1, 1, MagneticFieldLines.LINE_RESOLUTION, 10);
 
-  public constructor(magneticFieldLines: MagneticFieldLines, fragmentNoise: Texture) {
+  public constructor(magneticFieldLines: MagneticFieldLines, vertexNoise: Texture, fragmentNoise: Texture) {
     super(SurfaceFlares.GEOMETRY, new NodeMaterial(), magneticFieldLines.count);
     this.material.transparent = true;
     this.material.depthWrite = false;
@@ -23,9 +23,13 @@ export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
     const pointOnLineB = texture(magneticFieldLines.lowerBounds, lookupUv).toVar();
     const positionBetweenLines = uv().y.toVar();
     const edgeMask = positionBetweenLines.mul(PI).sin();
-    const alpha = vertexStage(mix(pointOnLineA.a, pointOnLineB.a, positionBetweenLines).mul(edgeMask));
+    const lineAlpha = mix(pointOnLineA.a, pointOnLineB.a, positionBetweenLines).toVar();
+    const alpha = vertexStage(lineAlpha.mul(edgeMask));
 
-    this.material.positionNode = mix(pointOnLineA.xyz, pointOnLineB.xyz, positionBetweenLines);
+    this.material.positionNode = Fn(() => {
+      const offset = texture(vertexNoise, vec2(time.mul(0.1), lineId)).xyz.mul(lineAlpha.oneMinus());
+      return mix(pointOnLineA.xyz, pointOnLineB.xyz, positionBetweenLines).add(offset);
+    })();
 
     this.material.colorNode = Fn(() => {
       const noise = texture(fragmentNoise, uv().add(vec2(time, instanceIndex)).mul(vec2(0.01, 0.37))).x;

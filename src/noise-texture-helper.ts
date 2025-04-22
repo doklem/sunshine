@@ -7,67 +7,70 @@ export class NoiseTextureHelper {
   private readonly noise = new SimplexNoise();
 
   public createSimplexTexture2D(
-    size: number,
+    width: number,
+    height: number,
     seam: number,
     frequency: number,
     amplitude: number,
     octaves: number,
     components: number,
     adapt?: (value: number, component: number) => number): DataTexture {
-    const seamSize = Math.round(size * seam);
-    const seamSizeReciprocal = 1 / seamSize;
-    const data = new Float32Array(size * size * components);
+    const widthSeamSize = Math.round(width * seam);
+    const widthSeamSizeReciprocal = 1 / widthSeamSize;
+    const heightSeamSize = Math.round(height * seam);
+    const heightSeamSizeReciprocal = 1 / heightSeamSize;
+    const data = new Float32Array(width * height * components);
     let offset = 0;
     let value: number;
 
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
         for (let w = 0; w < components; w++) {
-          if (x < seamSize && seamSize <= y) {
+          if (x < widthSeamSize && heightSeamSize <= y) {
 
             // Linear interpolation
             value = MathUtils.lerp(
-              this.noise3dWithOctaves(x + size, y, w, frequency, amplitude, octaves),
+              this.noise3dWithOctaves(x + width, y, w, frequency, amplitude, octaves),
               this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves),
-              x * seamSizeReciprocal
+              x * widthSeamSizeReciprocal
             );
-          } else if (seamSize <= x && y < seamSize) {
+          } else if (widthSeamSize <= x && y < heightSeamSize) {
 
             // Linear interpolation
             value = MathUtils.lerp(
-              this.noise3dWithOctaves(x, y + size, w, frequency, amplitude, octaves),
+              this.noise3dWithOctaves(x, y + width, w, frequency, amplitude, octaves),
               this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves),
-              y * seamSizeReciprocal
+              y * heightSeamSizeReciprocal
             );
-          } else if (x < seamSize && y < seamSize) {
+          } else if (x < widthSeamSize && y < heightSeamSize) {
 
             // Bilinear interpolation
             value = MathUtils.lerp(
               MathUtils.lerp(
-                this.noise3dWithOctaves(x + size, y + size, w, frequency, amplitude, octaves),
-                this.noise3dWithOctaves(x + size, y, w, frequency, amplitude, octaves),
-                y * seamSizeReciprocal
+                this.noise3dWithOctaves(x + width, y + width, w, frequency, amplitude, octaves),
+                this.noise3dWithOctaves(x + width, y, w, frequency, amplitude, octaves),
+                y * heightSeamSizeReciprocal
               ),
               MathUtils.lerp(
-                this.noise3dWithOctaves(x, y + size, w, frequency, amplitude, octaves),
+                this.noise3dWithOctaves(x, y + width, w, frequency, amplitude, octaves),
                 this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves),
-                y * seamSizeReciprocal
+                y * heightSeamSizeReciprocal
               ),
-              x * seamSizeReciprocal
+              x * widthSeamSizeReciprocal
             );
           } else {
-            
+
             // No interpolation
             value = this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves);
           }
-          
+
           data[offset] = adapt ? adapt(value, w) : value;
           offset++;
         }
       }
     }
 
-    return NoiseTextureHelper.configureTexture(new DataTexture(data, size, size), components);
+    return NoiseTextureHelper.configureTexture(new DataTexture(data, width, width), components);
   }
 
   public createSimplexTexture3D(

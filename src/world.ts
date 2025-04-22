@@ -18,10 +18,10 @@ export class World {
   private readonly renderer: WebGPURenderer;
   private readonly postProcessing: PostProcessing;
   private readonly bloomPass: BloomNode;
-  private readonly magneticFieldLines: MagneticFieldLines;
   private readonly noiseHelper: NoiseTextureHelper;
-  
+
   private surface?: Surface;
+  private magneticFieldLines?: MagneticFieldLines;
   private surfaceFlares?: SurfaceFlares;
   private lastFrame = 0;
   private rotation = true;
@@ -42,7 +42,6 @@ export class World {
     this.scene = new Scene();
 
     this.noiseHelper = new NoiseTextureHelper();
-    this.magneticFieldLines = new MagneticFieldLines();
 
     this.postProcessing = new PostProcessing(this.renderer);
     const scenePass = pass(this.scene, this.camera);
@@ -62,9 +61,10 @@ export class World {
     );
     this.scene.add(this.surface);
 
+    this.magneticFieldLines = new MagneticFieldLines(this.noiseHelper.createSimplexTexture2D(128, 1, 0.25, 1, 1, 3, 1, SurfaceFlares.adpatFragmentNoise));
     await this.magneticFieldLines.updateAsync(this.renderer);
 
-    const flareFragmentNoise = this.noiseHelper.createSimplexTexture2D(128, 0.25, 1, 1, 3, 1, SurfaceFlares.adpatFragmentNoise);
+    const flareFragmentNoise = this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, SurfaceFlares.adpatFragmentNoise);
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
     this.surfaceFlares = new SurfaceFlares(this.magneticFieldLines, flareFragmentNoise);
@@ -90,7 +90,7 @@ export class World {
 
   private onAnimationFrame(time: DOMHighResTimeStamp): void {
     var delta = this.lastFrame - time;
-    this.lastFrame = time;    
+    this.lastFrame = time;
     if (this.surface) {
       this.surface.time.value = time;
     }

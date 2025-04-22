@@ -70,7 +70,7 @@ export class NoiseTextureHelper {
       }
     }
 
-    return NoiseTextureHelper.configureTexture(new DataTexture(data, width, width), components);
+    return NoiseTextureHelper.configureTexture(new DataTexture(data, width, height), components);
   }
 
   public createSimplexTexture3D(

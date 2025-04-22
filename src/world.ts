@@ -61,13 +61,16 @@ export class World {
     );
     this.scene.add(this.surface);
 
-    this.magneticFieldLines = new MagneticFieldLines(this.noiseHelper.createSimplexTexture2D(128, 1, 0.25, 1, 1, 3, 1, SurfaceFlares.adpatFragmentNoise));
+    this.magneticFieldLines = new MagneticFieldLines();
     await this.magneticFieldLines.updateAsync(this.renderer);
 
     const flareFragmentNoise = this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, SurfaceFlares.adpatFragmentNoise);
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
-    this.surfaceFlares = new SurfaceFlares(this.magneticFieldLines, flareFragmentNoise);
+    this.surfaceFlares = new SurfaceFlares(
+      this.magneticFieldLines,
+      flareFragmentNoise
+    );
     this.scene.add(this.surfaceFlares);
 
     this.renderer.setAnimationLoop(this.onAnimationFrame.bind(this));

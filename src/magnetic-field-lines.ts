@@ -1,7 +1,7 @@
-import { ClampToEdgeWrapping, FloatType, LinearFilter, Quaternion, RGBAFormat, Texture, Vector3 } from 'three';
+import { ClampToEdgeWrapping, FloatType, LinearFilter, RGBAFormat, Vector3 } from 'three';
 import { Surface } from './surface';
 import { Node, StorageBufferAttribute, StorageTexture, WebGPURenderer } from 'three/webgpu';
-import { float, Fn, instanceIndex, Loop, mix, PI, storage, textureStore, vec2, vec4 } from 'three/tsl';
+import { float, Fn, instanceIndex, Loop, mix, PI, storage, textureStore, time, vec2, vec3, vec4 } from 'three/tsl';
 import { ShaderNodeFn, ShaderNodeObject } from 'three/src/nodes/TSL.js';
 
 export class MagneticFieldLines {
@@ -43,16 +43,46 @@ export class MagneticFieldLines {
     return MagneticFieldLines.quadraticBezier(firstHigherPoint, secondHigherPoint, thirdHigherPoint, progress);
   });
 
+  private static readonly quaternionFromAxisAngle = Fn<[
+    ShaderNodeObject<Node>,
+    ShaderNodeObject<Node>
+  ]>(([axis, angle]) => {
+    const halfAngle = angle.mul(0.5).toVar();
+    const s = halfAngle.sin().toVar();
+    return vec4(
+      axis.x.mul(s),
+      axis.y.mul(s),
+      axis.z.mul(s),
+      halfAngle.cos()
+    );
+  });
+
+  private static readonly applyQuaternion = Fn<[
+    ShaderNodeObject<Node>,
+    ShaderNodeObject<Node>
+  ]>(([vector, quaternion]) => {
+    const tx = quaternion.y.mul(vector.z).sub(quaternion.z.mul(vector.y)).mul(2).toVar();
+    const ty = quaternion.z.mul(vector.x).sub(quaternion.x.mul(vector.z)).mul(2).toVar();
+    const tz = quaternion.x.mul(vector.y).sub(quaternion.y.mul(vector.x)).mul(2).toVar();
+    return vec3(
+      vector.x.add(quaternion.w.mul(tx)).add(quaternion.y.mul(tz)).sub(quaternion.z.mul(ty)),
+      vector.y.add(quaternion.w.mul(ty)).add(quaternion.z.mul(tx)).sub(quaternion.x.mul(tz)),
+      vector.z.add(quaternion.w.mul(tz)).add(quaternion.x.mul(ty)).sub(quaternion.y.mul(tx))
+    );
+  });
+
   public readonly count: number;
-  public readonly upperLines: StorageTexture;
-  public readonly lowerLines: StorageTexture;
+  public readonly upperBounds: StorageTexture;
+  public readonly lowerBounds: StorageTexture;
 
-  private readonly computeUpperLines: ShaderNodeFn<[]>;
-  private readonly computeLowerLines: ShaderNodeFn<[]>;
-  private readonly upperLinePointsBuffer: StorageBufferAttribute;
-  private readonly lowerLinePointsBuffer: StorageBufferAttribute;
+  private readonly computeConnections: ShaderNodeFn<[]>;
+  private readonly computeUpperBounds: ShaderNodeFn<[]>;
+  private readonly computeLowerBounds: ShaderNodeFn<[]>;
+  private readonly connectionsBuffer: StorageBufferAttribute;
+  private readonly upperBoundPointsBuffer: StorageBufferAttribute;
+  private readonly lowerBoundPointsBuffer: StorageBufferAttribute;
 
-  public constructor(poleDistortionTexture: Texture) {
+  public constructor() {
 
     const northPoles: Vector3[] = MagneticFieldLines.fibonacciSphere(MagneticFieldLines.NORTH_POLE_COUNT, MagneticFieldLines.BASE_ALTITUDE_RADIUS);
     const southPoles: Vector3[] = MagneticFieldLines.fibonacciSphere(MagneticFieldLines.SOUTH_POLE_COUNT, MagneticFieldLines.BASE_ALTITUDE_RADIUS);
@@ -76,56 +106,69 @@ export class MagneticFieldLines {
     });
 
     this.count = connections.length;
-    const bufferLength = this.count * MagneticFieldLines.VECTOR_SIZE * MagneticFieldLines.CONTROL_POINT_COUNT;
-    this.upperLinePointsBuffer = new StorageBufferAttribute(new Float32Array(bufferLength), MagneticFieldLines.VECTOR_SIZE);
-    this.lowerLinePointsBuffer = new StorageBufferAttribute(new Float32Array(bufferLength), MagneticFieldLines.VECTOR_SIZE);
+    this.connectionsBuffer = new StorageBufferAttribute(
+      new Float32Array(connections.flatMap(connection => [
+        connection[0].x, connection[0].y, connection[0].z,
+        connection[1].x, connection[1].y, connection[1].z
+      ])),
+      MagneticFieldLines.VECTOR_SIZE
+    );
+    const boundsBufferLength = this.count * MagneticFieldLines.VECTOR_SIZE * MagneticFieldLines.CONTROL_POINT_COUNT;
+    this.upperBoundPointsBuffer = new StorageBufferAttribute(new Float32Array(boundsBufferLength), MagneticFieldLines.VECTOR_SIZE);
+    this.lowerBoundPointsBuffer = new StorageBufferAttribute(new Float32Array(boundsBufferLength), MagneticFieldLines.VECTOR_SIZE);
 
-    const upperLineRotation = new Quaternion();
-    const lowerLineRotation = new Quaternion();
-    let offset = 0;
+    this.computeConnections = Fn(() => {
+      const connectionId = instanceIndex.mul(2).toVar();
+      const connectionsBuffer = storage(this.connectionsBuffer, 'vec3');
+      const upperBoundsBuffer = storage(this.upperBoundPointsBuffer, 'vec3');
+      const lowerBoundsBuffer = storage(this.lowerBoundPointsBuffer, 'vec3');
 
-    connections.forEach(connection => {
-      const controlPoints = MagneticFieldLines.createControlPoints(connection[0], connection[1]);
+      const firstPoint = connectionsBuffer.element(connectionId).toVar();
+      const secondPoint = firstPoint.normalize().mul(MagneticFieldLines.HIGH_ALTITUDE_RADIUS).toVar();
+      const fourthPoint = connectionsBuffer.element(connectionId.add(1)).toVar();
+      const thirdPoint = fourthPoint.normalize().mul(MagneticFieldLines.HIGH_ALTITUDE_RADIUS).toVar();
 
-      const rotationAxis = controlPoints[3].clone().sub(controlPoints[0]).normalize();
-      upperLineRotation.setFromAxisAngle(rotationAxis, -MagneticFieldLines.LINE_ANGLE);
-      lowerLineRotation.setFromAxisAngle(rotationAxis, MagneticFieldLines.LINE_ANGLE);
+      const rotationAxis = fourthPoint.sub(firstPoint).normalize().toVar();
+      const upperBoundRotation = MagneticFieldLines.quaternionFromAxisAngle(rotationAxis, -MagneticFieldLines.LINE_ANGLE);
+      const lowerBoundRotation = MagneticFieldLines.quaternionFromAxisAngle(rotationAxis, MagneticFieldLines.LINE_ANGLE);
 
-      this.upperLinePointsBuffer.set(controlPoints[0].toArray(), offset);
-      this.lowerLinePointsBuffer.set(controlPoints[0].toArray(), offset);
-      offset += MagneticFieldLines.VECTOR_SIZE;
+      const firstPointId = instanceIndex.mul(MagneticFieldLines.CONTROL_POINT_COUNT).toVar();
+      const secondPointId = firstPointId.add(1).toVar();
+      const thirdPointId = secondPointId.add(1).toVar();
+      const fourthPointId = thirdPointId.add(1).toVar();
 
-      this.upperLinePointsBuffer.set(controlPoints[1].clone().applyQuaternion(upperLineRotation).toArray(), offset);
-      this.lowerLinePointsBuffer.set(controlPoints[1].clone().applyQuaternion(lowerLineRotation).toArray(), offset);
-      offset += MagneticFieldLines.VECTOR_SIZE;
+      upperBoundsBuffer.element(firstPointId).assign(firstPoint);
+      lowerBoundsBuffer.element(firstPointId).assign(firstPoint);
 
-      this.upperLinePointsBuffer.set(controlPoints[2].clone().applyQuaternion(upperLineRotation).toArray(), offset);
-      this.lowerLinePointsBuffer.set(controlPoints[2].clone().applyQuaternion(lowerLineRotation).toArray(), offset);
-      offset += MagneticFieldLines.VECTOR_SIZE;
+      upperBoundsBuffer.element(secondPointId).assign(MagneticFieldLines.applyQuaternion(secondPoint, upperBoundRotation));
+      lowerBoundsBuffer.element(secondPointId).assign(MagneticFieldLines.applyQuaternion(secondPoint, lowerBoundRotation));
 
-      this.upperLinePointsBuffer.set(controlPoints[3].toArray(), offset);
-      this.lowerLinePointsBuffer.set(controlPoints[3].toArray(), offset);
-      offset += MagneticFieldLines.VECTOR_SIZE;
+      upperBoundsBuffer.element(thirdPointId).assign(MagneticFieldLines.applyQuaternion(thirdPoint, upperBoundRotation));
+      lowerBoundsBuffer.element(thirdPointId).assign(MagneticFieldLines.applyQuaternion(thirdPoint, lowerBoundRotation));
+
+      upperBoundsBuffer.element(fourthPointId).assign(fourthPoint);
+      lowerBoundsBuffer.element(fourthPointId).assign(fourthPoint);
     });
 
-    this.upperLines = MagneticFieldLines.createLinesTexture(MagneticFieldLines.LINE_RESOLUTION + 1, this.count);
-    this.lowerLines = MagneticFieldLines.createLinesTexture(MagneticFieldLines.LINE_RESOLUTION + 1, this.count);
+    this.upperBounds = MagneticFieldLines.createBoundsTexture(MagneticFieldLines.LINE_RESOLUTION + 1, this.count);
+    this.lowerBounds = MagneticFieldLines.createBoundsTexture(MagneticFieldLines.LINE_RESOLUTION + 1, this.count);
 
-    this.computeUpperLines = MagneticFieldLines.createLineUpdateFunction(this.upperLinePointsBuffer, this.upperLines);
-    this.computeLowerLines = MagneticFieldLines.createLineUpdateFunction(this.lowerLinePointsBuffer, this.lowerLines);
+    this.computeUpperBounds = MagneticFieldLines.createUpdateBoundsFunction(this.upperBoundPointsBuffer, this.upperBounds);
+    this.computeLowerBounds = MagneticFieldLines.createUpdateBoundsFunction(this.lowerBoundPointsBuffer, this.lowerBounds);
   }
 
   public async updateAsync(renderer: WebGPURenderer): Promise<void> {
+    await renderer.computeAsync(this.computeConnections().compute(this.count));
     await Promise.all([
-      renderer.computeAsync(this.computeUpperLines().compute(this.count)),
-      renderer.computeAsync(this.computeLowerLines().compute(this.count))
+      renderer.compute(this.computeUpperBounds().compute(this.count)),
+      renderer.compute(this.computeLowerBounds().compute(this.count))
     ]);
   }
 
-  private static createLineUpdateFunction(pointsBuffer: StorageBufferAttribute, linesTexture: StorageTexture): ShaderNodeFn<[]> {
+  private static createUpdateBoundsFunction(boundPointsBuffer: StorageBufferAttribute, boundsTexture: StorageTexture): ShaderNodeFn<[]> {
     return Fn(() => {
       const lineId = instanceIndex.mul(MagneticFieldLines.CONTROL_POINT_COUNT).toVar();
-      const storageBuffer = storage(pointsBuffer, 'vec3');
+      const storageBuffer = storage(boundPointsBuffer, 'vec3');
       const firstPoint = storageBuffer.element(lineId).toVar();
       const secondPoint = storageBuffer.element(lineId.add(1)).toVar();
       const thirdPoint = storageBuffer.element(lineId.add(2)).toVar();
@@ -144,13 +187,13 @@ export class MagneticFieldLines {
           );
           const alpha = progress.mul(PI).sin().oneMinus().mul(0.8).add(0.2);
           const uv = vec2(i, instanceIndex).toVar();
-          textureStore(linesTexture, uv, vec4(point, alpha));
+          textureStore(boundsTexture, uv, vec4(point, alpha));
         }
       );
     });
   }
 
-  private static createLinesTexture(width: number, height: number): StorageTexture {
+  private static createBoundsTexture(width: number, height: number): StorageTexture {
     const texture = new StorageTexture(width, height);
     texture.format = RGBAFormat;
     texture.type = FloatType;
@@ -160,15 +203,6 @@ export class MagneticFieldLines {
     texture.minFilter = LinearFilter;
     texture.needsUpdate = true;
     return texture;
-  }
-
-  private static createControlPoints(start: Vector3, end: Vector3): Vector3[] {
-    return [
-      start.clone(),
-      start.clone().normalize().multiplyScalar(MagneticFieldLines.HIGH_ALTITUDE_RADIUS),
-      end.clone().normalize().multiplyScalar(MagneticFieldLines.HIGH_ALTITUDE_RADIUS),
-      end.clone()
-    ];
   }
 
   private static fibonacciSphere(count: number, height: number): Vector3[] {

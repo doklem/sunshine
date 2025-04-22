@@ -19,8 +19,8 @@ export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
     const lineSizeReciprocal = 1 / magneticFieldLines.count;
     const lineId = float(instanceIndex).add(0.5).mul(lineSizeReciprocal);
     const lookupUv = vec2(uv().x, lineId).toVar();
-    const pointOnLineA = texture(magneticFieldLines.upperLines, lookupUv).toVar();
-    const pointOnLineB = texture(magneticFieldLines.lowerLines, lookupUv).toVar();
+    const pointOnLineA = texture(magneticFieldLines.upperBounds, lookupUv).toVar();
+    const pointOnLineB = texture(magneticFieldLines.lowerBounds, lookupUv).toVar();
     const positionBetweenLines = uv().y.toVar();
     const edgeMask = positionBetweenLines.mul(PI).sin();
     const alpha = vertexStage(mix(pointOnLineA.a, pointOnLineB.a, positionBetweenLines).mul(edgeMask));

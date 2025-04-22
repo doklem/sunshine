@@ -1,62 +1,39 @@
-import { InstancedMesh, PlaneGeometry } from 'three';
-import { DoubleSide, NodeMaterial, Texture } from 'three/webgpu';
+import { DoubleSide, InstancedMesh, PlaneGeometry, Texture } from 'three';
+import { NodeMaterial } from 'three/webgpu';
+import { MagneticFieldLines } from './magnetic-field-lines';
+import { float, Fn, instanceIndex, mix, PI, texture, time, uv, vec2, vec4 } from 'three/tsl';
 import { Settings } from './settings';
 import { Instrument } from './instrument';
-import { float, Fn, instanceIndex, PI, positionLocal, texture, time, uv, vec2, vec3, vec4 } from 'three/tsl';
+import { vertexStage } from 'three/src/nodes/TSL.js';
 
 export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
 
-  private static readonly DISTORTION = -0.8;
-  private static readonly GEOMETRY = new PlaneGeometry(1, 1, 15, 13);
+  private static readonly GEOMETRY = new PlaneGeometry(1, 1, MagneticFieldLines.LINE_RESOLUTION, 10);
 
-  public constructor(vertexShaderNoise: Texture, fragmentShaderNoise: Texture) {
-    super(SurfaceFlares.GEOMETRY, new NodeMaterial(), 1);
+  public constructor(magneticFieldLines: MagneticFieldLines, fragmentNoise: Texture) {
+    super(SurfaceFlares.GEOMETRY, new NodeMaterial(), magneticFieldLines.count);
     this.material.transparent = true;
-    this.material.side = DoubleSide;
     this.material.depthWrite = false;
+    this.material.side = DoubleSide;
 
-    const countReciprocal = 1 / this.count;    
-    const centeredUV = uv().sub(0.5).toVar();
-    const distanceToSource = centeredUV.x.abs().mul(2).mul(centeredUV.y.abs().mul(2).smoothstep(2, 0.7)).toVar();
+    const lineSizeReciprocal = 1 / magneticFieldLines.count;
+    const lineId = float(instanceIndex).add(0.5).mul(lineSizeReciprocal);
+    const lookupUv = vec2(uv().x, lineId).toVar();
+    const pointOnLineA = texture(magneticFieldLines.linesA, lookupUv).toVar();
+    const pointOnLineB = texture(magneticFieldLines.linesB, lookupUv).toVar();
+    const positionBetweenLines = uv().y.toVar();
+    const edgeMask = positionBetweenLines.mul(PI).sin();
+    const alpha = vertexStage(mix(pointOnLineA.a, pointOnLineB.a, positionBetweenLines).mul(edgeMask));
 
-    this.material.positionNode = Fn(() => {
-      const scale = float(instanceIndex.add(1)).mul(countReciprocal).toVar();
-      const arcUV = uv().mul(PI).sin().toVar();
-
-      const position = vec3(
-        positionLocal.x,
-        positionLocal.y.mul(scale.mul(0.8)),
-        positionLocal.z.add(
-          arcUV.x.mul(arcUV.y).mul(scale).mul(0.3)
-        )
-      ).toVar();
-
-      const offset = texture(
-        vertexShaderNoise,
-        uv().mul(0.001).add(vec2(time.mul(0.005), 0))
-      ).xyz.mul(distanceToSource.oneMinus());
-
-      return position.add(offset);
-    })();
+    this.material.positionNode = mix(pointOnLineA.xyz, pointOnLineB.xyz, positionBetweenLines);
 
     this.material.colorNode = Fn(() => {
-      const scaledUV = uv().add(vec2(instanceIndex, 0)).mul(vec2(0.01, 5)).toVar();
-
-      const unityUV = uv().add(vec2(0, -0.5)).mul(PI).toVar();
-      const vOffset = unityUV.y.sin().mul(unityUV.x.sin()).mul(SurfaceFlares.DISTORTION).toVar();
-
-      const edgeMask = unityUV.add(vec2(0, vOffset)).y.abs().smoothstep(0.6, 0.19);
-      const alpha = texture(
-        fragmentShaderNoise,
-        scaledUV.add(
-          vec2(time.mul(0.01), vOffset.mul(1.5))
-        )
-      ).x.mul(distanceToSource.smoothstep(0.6, 1).add(0.2));
-      const hue = distanceToSource.smoothstep(0.6, 1.2).mul(0.5).toVar();
-
-      return vec4(1, hue.add(0.5), hue, edgeMask.mul(alpha));
+      const noise = texture(fragmentNoise, uv().add(vec2(time, instanceIndex)).mul(vec2(0.01, 0.37))).x;
+      return vec4(1, alpha, 0, alpha.mul(noise));
     })();
-    return;
+
+    this.computeBoundingSphere();
+    this.boundingSphere!.radius = MagneticFieldLines.HIGH_ALTITUDE_RADIUS;
   }
 
   public applySettings(settings: Settings): void {
@@ -69,9 +46,5 @@ export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
     }
     value = Math.max(0.1, value);
     return value;
-  }
-
-  public static adpatVertexNoise(value: number, _: number): number {
-    return value * 0.1;
   }
 }

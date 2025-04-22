@@ -1,10 +1,9 @@
 import { InstancedMesh, PlaneGeometry } from 'three';
 import { AdditiveBlending, SpriteNodeMaterial, StorageBufferNode, Texture, Vector3, WebGPURenderer } from 'three/webgpu';
-import { MagneticFieldLines } from './magnetic-field-lines';
+import { MagneticFieldLines_OLD } from './magnetic-field-lines_OLD';
 import { float, Fn, instancedArray, instanceIndex, int, mix, ShaderNodeObject, texture3D, time, vec3 } from 'three/tsl';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
 import { Settings } from './settings';
-import { Instrument } from './instrument';
 import { Surface } from './surface';
 
 export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> {
@@ -18,7 +17,7 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
   private readonly computeUpdate: ShaderNodeFn<[]>;
 
   public constructor(
-    magneticFieldLines: MagneticFieldLines,
+    magneticFieldLines: MagneticFieldLines_OLD,
     map: Texture,
     count: number) {
     super(
@@ -69,7 +68,7 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
       const offset = texture3D(magneticFieldLines.distortionTexture, position.mul(time.mul(0.1).sin()), int(0)).rgb.mul(ChargedParticles.OFFSET_STRENGTH);
       this.positionBuffer
         .element(instanceIndex)
-        .assign(position.add(offset).normalize().mul(height));
+        .assign(position/*.add(offset)*/.normalize().mul(height));
     });
 
     this.material.positionNode = this.positionBuffer.element(instanceIndex);
@@ -80,11 +79,11 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
     this.material.opacityNode = float(0.25);
 
     this.computeBoundingSphere();
-    this.boundingSphere!.radius = MagneticFieldLines.HIGH_ALTITUDE_RADIUS;
+    this.boundingSphere!.radius = MagneticFieldLines_OLD.HIGH_ALTITUDE_RADIUS;
   }
 
   public applySettings(settings: Settings): void {
-    this.visible = settings.instrument === Instrument.DEBUG_CHARGED_PARTICLES;
+    this.visible = settings.particles;
   }
 
   public onAnimationFrame(renderer: WebGPURenderer): void {

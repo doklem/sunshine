@@ -6,9 +6,8 @@ import { Surface } from './surface';
 import { pass } from 'three/tsl';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { Settings } from './settings';
-import { MagneticFieldLines } from './magnetic-field-lines';
 import { NoiseTextureHelper } from './noise-texture-helper';
-import { ChargedParticles } from './charged-particles';
+import { MagneticFieldLines } from './magnetic-field-lines';
 import { SurfaceFlares } from './surface-flares';
 
 export class World {
@@ -21,10 +20,9 @@ export class World {
   private readonly bloomPass: BloomNode;
   private readonly magneticFieldLines: MagneticFieldLines;
   private readonly noiseHelper: NoiseTextureHelper;
-  private readonly surfaceFlares: SurfaceFlares[];
   
   private surface?: Surface;
-  private chargedParticles?: ChargedParticles;
+  private surfaceFlares?: SurfaceFlares;
   private lastFrame = 0;
   private rotation = true;
 
@@ -44,8 +42,7 @@ export class World {
     this.scene = new Scene();
 
     this.noiseHelper = new NoiseTextureHelper();
-    this.magneticFieldLines = new MagneticFieldLines(8, 500, this.noiseHelper.createSimplexTexture3D(32, 0.25, 1 / 32, 1, 3, 4));
-    this.surfaceFlares = [];
+    this.magneticFieldLines = new MagneticFieldLines();
 
     this.postProcessing = new PostProcessing(this.renderer);
     const scenePass = pass(this.scene, this.camera);
@@ -56,10 +53,6 @@ export class World {
 
   public async startAsync(): Promise<void> {
     const loader = new TextureLoader();
-    const chargedParticleTexture = await loader.loadAsync('charged-particle.png');
-
-    this.chargedParticles = new ChargedParticles(this.magneticFieldLines, chargedParticleTexture, 10000);
-    this.scene.add(this.chargedParticles);
 
     this.surface = new Surface(
       this.noiseHelper.createVoronoiTexture3D(64, 1),
@@ -69,25 +62,13 @@ export class World {
     );
     this.scene.add(this.surface);
 
+    await this.magneticFieldLines.updateAsync(this.renderer);
+
     const flareFragmentNoise = this.noiseHelper.createSimplexTexture2D(128, 0.25, 1, 1, 3, 1, SurfaceFlares.adpatFragmentNoise);
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
-    const flareVertexNoise = this.noiseHelper.createSimplexTexture2D(128, 0.25, 1, 1, 3, 4, SurfaceFlares.adpatVertexNoise);
-    flareVertexNoise.generateMipmaps = true;
-    flareVertexNoise.needsUpdate = true;
-
-    const size = 1;
-    let surfaceFlare: SurfaceFlares;
-    for (let z = 0; z < size; z++) {
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          surfaceFlare = new SurfaceFlares(flareVertexNoise, flareFragmentNoise);
-          surfaceFlare.position.set(x, y, z);
-          this.scene.add(surfaceFlare);
-          this.surfaceFlares.push(surfaceFlare);
-        }
-      }
-    }
+    this.surfaceFlares = new SurfaceFlares(this.magneticFieldLines, flareFragmentNoise);
+    this.scene.add(this.surfaceFlares);
 
     this.renderer.setAnimationLoop(this.onAnimationFrame.bind(this));
   }
@@ -95,9 +76,8 @@ export class World {
   public applySettings(settings: Settings): void {
     this.bloomPass.strength.value = settings.bloomStrength;
     this.rotation = settings.rotation;
-    this.chargedParticles?.applySettings(settings);
     this.surface?.applySettings(settings);
-    this.surfaceFlares.forEach(flare => flare.applySettings(settings));
+    this.surfaceFlares?.applySettings(settings);
   }
 
   public onResize(width: number, height: number, devicePixelRatio: number): void {
@@ -110,21 +90,23 @@ export class World {
 
   private onAnimationFrame(time: DOMHighResTimeStamp): void {
     var delta = this.lastFrame - time;
-    this.lastFrame = time;
+    this.lastFrame = time;    
     if (this.surface) {
       this.surface.time.value = time;
     }
+
     this.controls.update(delta);
     if (this.rotation) {
       this.scene.rotateY(delta * -0.00002);
     }
-    this.chargedParticles?.onAnimationFrame(this.renderer);
+
     if (this.bloomPass.strength.value > 0) {
       this.postProcessing.render();
     }
     else {
       this.renderer.render(this.scene, this.camera);
     }
+
     this.stats.update();
   }
 }

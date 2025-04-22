@@ -12,10 +12,10 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
 
   private readonly positionBuffer: ShaderNodeObject<StorageBufferNode>;
   private readonly progressBuffer: ShaderNodeObject<StorageBufferNode>;
-  private readonly computeUpdate: ShaderNodeFn<[]>;
+  //private readonly computeUpdate: ShaderNodeFn<[]>;
 
   public constructor(
-    magneticFieldLines: MagneticFieldLines_OLD,
+    //magneticFieldLines: MagneticFieldLines_OLD,
     map: Texture,
     count: number) {
     super(
@@ -37,9 +37,8 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
     this.progressBuffer = instancedArray(count, 'float');
     this.progressBuffer.value.set(new Float32Array(initialProgress));
 
-    const fieldLineId = instanceIndex.mod(int(magneticFieldLines.count)).toVar();
+    /*const fieldLineId = instanceIndex.mod(int(magneticFieldLines.count)).toVar();
     const incrementedProgress = this.progressBuffer.element(instanceIndex).add(magneticFieldLines.speedsBuffer.element(fieldLineId)).mod(1).toVar();
-
 
     const qubicBezier = Fn<[]>
       (() => {
@@ -76,12 +75,12 @@ export class ChargedParticles extends InstancedMesh<PlaneGeometry, SpriteNodeMat
     this.material.opacityNode = float(0.25);
 
     this.computeBoundingSphere();
-    this.boundingSphere!.radius = MagneticFieldLines_OLD.HIGH_ALTITUDE_RADIUS;
+    this.boundingSphere!.radius = MagneticFieldLines_OLD.HIGH_ALTITUDE_RADIUS;*/
   }
 
   public onAnimationFrame(renderer: WebGPURenderer): void {
-    if (this.visible) {
+    /*if (this.visible) {
       renderer.compute(this.computeUpdate().compute(this.count));
-    }
+    }*/
   }
 }

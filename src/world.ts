@@ -95,9 +95,6 @@ export class World {
   private onAnimationFrame(time: DOMHighResTimeStamp): void {
     var delta = this.lastFrame - time;
     this.lastFrame = time;
-    if (this.surface) {
-      this.surface.time.value = time;
-    }
 
     this.controls.update(delta);
     if (this.rotation) {

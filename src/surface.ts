@@ -1,7 +1,7 @@
 import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, IcosahedronGeometry, LinearFilter, Mesh, RGBAFormat, Texture } from 'three';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
-import { cameraPosition, float, Fn, normalLocal, normalWorld, ShaderNodeObject, texture, texture3D, uniform, vec2, vec4 } from 'three/tsl';
-import { NodeMaterial, UniformNode } from 'three/webgpu';
+import { cameraPosition, float, Fn, normalLocal, normalWorld, texture, texture3D, time, vec2, vec4 } from 'three/tsl';
+import { NodeMaterial } from 'three/webgpu';
 import { Settings } from './settings';
 import { Instrument } from './instrument';
 
@@ -15,8 +15,6 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
   private readonly renderHMIItensitygramColored: ShaderNodeFn<[]>;
   private readonly renderAIA304A: ShaderNodeFn<[]>;
 
-  public readonly time: ShaderNodeObject<UniformNode<number>>;
-
   public constructor(
     voronoiTexture: Data3DTexture,
     randomNoiseTexture: Data3DTexture,
@@ -25,18 +23,16 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
     super(new IcosahedronGeometry(Surface.GEOMETRY_RADIUS, Surface.GEOMETRY_DETAILS), new NodeMaterial());
     const colorGradientTexture = Surface.configureToGradient(colorGradient);
 
-    this.time = uniform(0);
-
     const latitude = normalLocal.y.abs().oneMinus();
 
     const activityMask = texture3D(
       simplexTexture,
-      normalLocal.mul(float(1).add(this.time.mul(0.00005).sin().mul(0.1)))
+      normalLocal.mul(float(1).add(time.mul(0.05).sin().mul(0.1)))
     ).x.mul(latitude.smoothstep(0.5, 0.6)).smoothstep(0.7, 0.75);
 
     const sunSpotShape = texture3D(
       simplexTexture,
-      normalLocal.mul(float(5).add(this.time.mul(0.0001).sin().mul(0.1)))
+      normalLocal.mul(float(5).add(time.mul(0.1).sin().mul(0.1)))
     ).r.smoothstep(0.55, 0.7);
 
     const sunSpot = activityMask.mul(sunSpotShape);
@@ -44,11 +40,11 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
 
     const tempertureTrubulence = texture3D(
       randomNoiseTexture,
-      normalLocal.mul(10).add(this.time.mul(0.00001).sin())
+      normalLocal.mul(10).add(time.mul(0.01).sin())
     );
     const convectionTemperatur = texture3D(
       voronoiTexture,
-      normalLocal.mul(this.time.mul(0.0005).add(timeOffset).sin().mul(0.1).add(20)).add(tempertureTrubulence)
+      normalLocal.mul(time.mul(0.5).add(timeOffset).sin().mul(0.1).add(20)).add(tempertureTrubulence)
     ).r.mul(0.25).add(0.75);
 
     const halo = cameraPosition.normalize().dot(normalWorld).mul(Math.PI).sin().smoothstep(1, 0);

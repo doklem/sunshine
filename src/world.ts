@@ -9,11 +9,13 @@ import { Settings } from './settings';
 import { NoiseTextureHelper } from './noise-texture-helper';
 import { MagneticFieldLines } from './magnetic-field-lines';
 import { SurfaceFlares } from './surface-flares';
-import { MagneticPolesMesh } from './magnetic-poles-mesh';
 import { MagneticPoles } from './magnetic-poles';
 import { MagneticConnections } from './magnetic-connections';
 import { DebugLineSegments } from './debug-line-segments';
 import { Instrument } from './instrument';
+import { DebugSprites } from './debug-sprites';
+import { OutboundFlares } from './outbound-flares';
+import { FlowTest } from './flow-test';
 
 export class World {
 
@@ -25,14 +27,17 @@ export class World {
   private readonly bloomPass: BloomNode;
   private readonly noiseHelper: NoiseTextureHelper;
   private readonly magneticPoles: MagneticPoles;
-  private readonly magneticPolesMesh?: MagneticPolesMesh;
   private readonly magneticConnections: MagneticConnections;
+  private readonly magneticNorthPoleMesh?: DebugSprites;
+  private readonly magneticSouthPoleMesh?: DebugSprites;
   private readonly closedMagneticConnectionsMesh?: DebugLineSegments;
   private readonly openMagneticConnectionsMesh?: DebugLineSegments;
 
   private surface?: Surface;
   private magneticFieldLines?: MagneticFieldLines;
   private surfaceFlares?: SurfaceFlares;
+  private outboundFlares?: OutboundFlares;
+  private flowTest?: FlowTest;
   private lastFrame = 0;
   private rotation = true;
 
@@ -56,18 +61,24 @@ export class World {
     this.magneticConnections = new MagneticConnections(this.magneticPoles);
 
     if (debugMode) {
-      this.magneticPolesMesh = new MagneticPolesMesh(this.magneticPoles);
-      this.scene.add(this.magneticPolesMesh);
+      const magentosphereVisibilty = (settings: Settings) => settings.instrument === Instrument.DEBUG_MAGNETOSPHERE;
+      this.magneticNorthPoleMesh = new DebugSprites(this.magneticPoles.northPoles, vec4(0, 0, 1, 1), magentosphereVisibilty);
+      this.scene.add(this.magneticNorthPoleMesh);
+
+      this.magneticSouthPoleMesh = new DebugSprites(this.magneticPoles.southPoles, vec4(1, 0, 0, 1), magentosphereVisibilty);
+      this.scene.add(this.magneticSouthPoleMesh);
+
       this.closedMagneticConnectionsMesh = new DebugLineSegments(
         this.magneticConnections.closedConnections.flat(),
         vec4(0, 1, 0, 1),
-        settings => settings.instrument === Instrument.DEBUG_MAGNETOSPHERE
+        magentosphereVisibilty
       );
       this.scene.add(this.closedMagneticConnectionsMesh);
+
       this.openMagneticConnectionsMesh = new DebugLineSegments(
         this.magneticConnections.openConnections.flatMap(pole => [pole, pole.clone().multiplyScalar(1.1)]),
         vec4(1, 1, 0, 1),
-        settings => settings.instrument === Instrument.DEBUG_MAGNETOSPHERE
+        magentosphereVisibilty
       );
       this.scene.add(this.openMagneticConnectionsMesh);
     }
@@ -103,6 +114,12 @@ export class World {
     );
     this.scene.add(this.surfaceFlares);
 
+    this.outboundFlares = new OutboundFlares(this.magneticConnections, flareFragmentNoise);
+    this.scene.add(this.outboundFlares);
+
+    this.flowTest = new FlowTest(this.noiseHelper.createSimplexTexture3D(128, 0.25, 1, 1, 3, 4));
+    this.scene.add(this.flowTest);
+
     this.renderer.setAnimationLoop(this.onAnimationFrame.bind(this));
   }
 
@@ -110,7 +127,8 @@ export class World {
     if (this.debugMode) {
       this.bloomPass.strength.value = settings.bloomStrength;
       this.rotation = settings.rotation;
-      this.magneticPolesMesh?.applySettings(settings);
+      this.magneticNorthPoleMesh?.applySettings(settings);
+      this.magneticSouthPoleMesh?.applySettings(settings);
       this.closedMagneticConnectionsMesh?.applySettings(settings);
       this.openMagneticConnectionsMesh?.applySettings(settings);
     } else {
@@ -119,6 +137,8 @@ export class World {
 
     this.surface?.applySettings(settings);
     this.surfaceFlares?.applySettings(settings);
+    this.outboundFlares?.applySettings(settings);
+    this.flowTest?.applySettings(settings);
   }
 
   public onResize(width: number, height: number, devicePixelRatio: number): void {

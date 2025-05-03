@@ -20,7 +20,8 @@ export class Settings {
     };
     if (debugMode) {
       instruments['Debug Magnetosphere'] = Instrument.DEBUG_MAGNETOSPHERE;
-      this.instrument = Instrument.DEBUG_MAGNETOSPHERE;
+      instruments['Debug Flow'] = Instrument.DEBUG_FLOW;
+      this.instrument = Instrument.DEBUG_FLOW;
     } else {
       this.instrument = Instrument.AIA_304_A;
     }

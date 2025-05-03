@@ -21,8 +21,8 @@ export class MagneticFieldLines {
   public readonly closedUpperBounds: StorageTexture;
   public readonly closedLowerBounds: StorageTexture;
   public readonly openCount: number;
-  public readonly openRightBounds: StorageTexture;
-  public readonly openLeftBounds: StorageTexture;
+  public readonly openUpperBounds: StorageTexture;
+  public readonly openLowerBounds: StorageTexture;
 
   private readonly computeClosed: ShaderNodeFn<[]>;
   private readonly computeOpen: ShaderNodeFn<[]>;
@@ -76,8 +76,8 @@ export class MagneticFieldLines {
     });
 
     this.openCount = magneticConnections.openConnections.length;
-    this.openRightBounds = MagneticFieldLines.createBoundsTexture(2, magneticConnections.openConnections.length);
-    this.openLeftBounds = MagneticFieldLines.createBoundsTexture(2, magneticConnections.openConnections.length);
+    this.openUpperBounds = MagneticFieldLines.createBoundsTexture(2, magneticConnections.openConnections.length);
+    this.openLowerBounds = MagneticFieldLines.createBoundsTexture(2, magneticConnections.openConnections.length);
 
     this.computeOpen = Fn(() => {
       const connectionsBuffer = storage(magneticConnections.openConnectionsBuffer, 'vec3');
@@ -90,10 +90,10 @@ export class MagneticFieldLines {
       const leftPointUpperBound = leftPointLowerBound.normalize().mul(MagneticFieldLines.HIGH_ALTITUDE_RADIUS).toVar();
       const rightPointUpperBound = rightPointLowerBound.normalize().mul(MagneticFieldLines.HIGH_ALTITUDE_RADIUS).toVar();
 
-      textureStore(this.openLeftBounds, vec2(0, instanceIndex), vec4(leftPointLowerBound));
-      textureStore(this.openLeftBounds, vec2(1, instanceIndex), vec4(rightPointLowerBound));
-      textureStore(this.openRightBounds, vec2(0, instanceIndex), vec4(leftPointUpperBound));
-      textureStore(this.openRightBounds, vec2(1, instanceIndex), vec4(rightPointUpperBound));
+      textureStore(this.openLowerBounds, vec2(0, instanceIndex), vec4(leftPointLowerBound));
+      textureStore(this.openLowerBounds, vec2(1, instanceIndex), vec4(rightPointLowerBound));
+      textureStore(this.openUpperBounds, vec2(0, instanceIndex), vec4(leftPointUpperBound));
+      textureStore(this.openUpperBounds, vec2(1, instanceIndex), vec4(rightPointUpperBound));
     });
   }
 

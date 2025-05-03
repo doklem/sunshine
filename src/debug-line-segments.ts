@@ -4,12 +4,19 @@ import { Settings } from './settings';
 
 export class DebugLineSegments extends LineSegments<BufferGeometry, NodeMaterial> {
 
-  public constructor(points: Vector3[], colorNode: Node, private visibility: (settings: Settings) => boolean) {
+  public constructor(
+    points: Vector3[],
+    colorNode: Node,
+    private visibility: (settings: Settings) => boolean,
+    radius: number) {
     super(
       new BufferGeometry().setFromPoints(points),
       new NodeMaterial()
     );
     this.material.colorNode = colorNode;
+
+    this.geometry.computeBoundingSphere();
+    this.geometry.boundingSphere!.radius = radius;
   }
 
   public applySettings(settings: Settings): void {

@@ -62,28 +62,32 @@ export class World {
       this.magneticNorthPoleMesh = new DebugSprites(
         this.magneticPoles.northPoles,
         vec4(0, 0, 1, 1),
-        (settings: Settings) => settings.magentosphre.northPoles
+        (settings: Settings) => settings.magentosphre.northPoles,
+        MagneticPoles.POLE_ALTITUDE_RADIUS
       );
       this.scene.add(this.magneticNorthPoleMesh);
 
       this.magneticSouthPoleMesh = new DebugSprites(
         this.magneticPoles.southPoles,
         vec4(1, 0, 0, 1),
-        (settings: Settings) => settings.magentosphre.southPoles
+        (settings: Settings) => settings.magentosphre.southPoles,
+        MagneticPoles.POLE_ALTITUDE_RADIUS
       );
       this.scene.add(this.magneticSouthPoleMesh);
 
       this.closedMagneticConnectionsMesh = new DebugLineSegments(
         this.magneticConnections.closedConnections.flat(),
         vec4(0, 0.3, 0, 1),
-        (settings: Settings) => settings.magentosphre.closedConnections
+        (settings: Settings) => settings.magentosphre.closedConnections,
+        MagneticFieldLines.HIGH_ALTITUDE_RADIUS
       );
       this.scene.add(this.closedMagneticConnectionsMesh);
 
       this.openMagneticConnectionsMesh = new DebugLineSegments(
         this.magneticConnections.openConnections.flatMap(pole => [pole, pole.clone().normalize().multiplyScalar(MagneticFieldLines.HIGH_ALTITUDE_RADIUS)]),
         vec4(0.3, 0.3, 0, 1),
-        (settings: Settings) => settings.magentosphre.openConnections
+        (settings: Settings) => settings.magentosphre.openConnections,
+        MagneticFieldLines.HIGH_ALTITUDE_RADIUS
       );
       this.scene.add(this.openMagneticConnectionsMesh);
 
@@ -127,7 +131,8 @@ export class World {
           this.magneticFieldLines.closedLowerBounds,
           this.magneticFieldLines.closedCount,
           vec4(0, 1, 0, 1),
-          (settings: Settings) => settings.magentosphre.closedMagenticFieldLines
+          (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
+          MagneticPoles.POLE_ALTITUDE_RADIUS
         )
       );
       this.magneticFieldLinesMesh.push(
@@ -135,23 +140,26 @@ export class World {
           this.magneticFieldLines.closedUpperBounds,
           this.magneticFieldLines.closedCount,
           vec4(0, 1, 0, 1),
-          (settings: Settings) => settings.magentosphre.closedMagenticFieldLines
+          (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
+          MagneticFieldLines.HIGH_ALTITUDE_RADIUS
         )
       );
       this.magneticFieldLinesMesh.push(
         new DebugCurves(
-          this.magneticFieldLines.openLeftBounds,
+          this.magneticFieldLines.openLowerBounds,
           this.magneticFieldLines.openCount,
           vec4(1, 1, 0, 1),
-          (settings: Settings) => settings.magentosphre.openMagenticFieldLines
+          (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
+          MagneticPoles.POLE_ALTITUDE_RADIUS
         )
       );
       this.magneticFieldLinesMesh.push(
         new DebugCurves(
-          this.magneticFieldLines.openRightBounds,
+          this.magneticFieldLines.openUpperBounds,
           this.magneticFieldLines.openCount,
           vec4(1, 1, 0, 1),
-          (settings: Settings) => settings.magentosphre.openMagenticFieldLines
+          (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
+          MagneticFieldLines.HIGH_ALTITUDE_RADIUS
         )
       );
       this.magneticFieldLinesMesh.forEach(fieldLine => this.scene.add(fieldLine));

@@ -12,6 +12,7 @@ export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> {
     count: number,
     colorNode: Node,
     private visibility: (settings: Settings) => boolean,
+    radius: number,
     resolution?: number) {
     super(
       DebugCurves.createGeometry(count, resolution ?? DebugCurves.DEFAULT_RESOLUTION),
@@ -23,6 +24,9 @@ export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> {
     })();
 
     this.material.colorNode = colorNode;
+
+    this.geometry.computeBoundingSphere();
+    this.geometry.boundingSphere!.radius = radius;
   }
 
   public applySettings(settings: Settings): void {

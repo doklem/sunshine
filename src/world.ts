@@ -14,8 +14,6 @@ import { MagneticConnections } from './magnetic-connections';
 import { DebugLineSegments } from './debug-line-segments';
 import { Instrument } from './instrument';
 import { DebugSprites } from './debug-sprites';
-import { OutboundFlares } from './outbound-flares';
-import { FlowTest } from './flow-test';
 
 export class World {
 
@@ -36,8 +34,6 @@ export class World {
   private surface?: Surface;
   private magneticFieldLines?: MagneticFieldLines;
   private surfaceFlares?: SurfaceFlares;
-  private outboundFlares?: OutboundFlares;
-  private flowTest?: FlowTest;
   private lastFrame = 0;
   private rotation = true;
 
@@ -114,12 +110,6 @@ export class World {
     );
     this.scene.add(this.surfaceFlares);
 
-    this.outboundFlares = new OutboundFlares(this.magneticConnections, flareFragmentNoise);
-    this.scene.add(this.outboundFlares);
-
-    this.flowTest = new FlowTest(this.noiseHelper.createSimplexTexture3D(128, 0.25, 1, 1, 3, 4));
-    this.scene.add(this.flowTest);
-
     this.renderer.setAnimationLoop(this.onAnimationFrame.bind(this));
   }
 
@@ -137,8 +127,6 @@ export class World {
 
     this.surface?.applySettings(settings);
     this.surfaceFlares?.applySettings(settings);
-    this.outboundFlares?.applySettings(settings);
-    this.flowTest?.applySettings(settings);
   }
 
   public onResize(width: number, height: number, devicePixelRatio: number): void {

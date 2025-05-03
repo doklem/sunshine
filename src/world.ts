@@ -3,12 +3,17 @@ import { PerspectiveCamera, Scene, TextureLoader } from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { PostProcessing, WebGPURenderer } from 'three/webgpu';
 import { Surface } from './surface';
-import { pass } from 'three/tsl';
+import { pass, vec4 } from 'three/tsl';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { Settings } from './settings';
 import { NoiseTextureHelper } from './noise-texture-helper';
 import { MagneticFieldLines } from './magnetic-field-lines';
 import { SurfaceFlares } from './surface-flares';
+import { MagneticPolesMesh } from './magnetic-poles-mesh';
+import { MagneticPoles } from './magnetic-poles';
+import { MagneticConnections } from './magnetic-connections';
+import { DebugLineSegments } from './debug-line-segments';
+import { Instrument } from './instrument';
 
 export class World {
 
@@ -19,6 +24,11 @@ export class World {
   private readonly postProcessing: PostProcessing;
   private readonly bloomPass: BloomNode;
   private readonly noiseHelper: NoiseTextureHelper;
+  private readonly magneticPoles: MagneticPoles;
+  private readonly magneticPolesMesh?: MagneticPolesMesh;
+  private readonly magneticConnections: MagneticConnections;
+  private readonly closedMagneticConnectionsMesh?: DebugLineSegments;
+  private readonly openMagneticConnectionsMesh?: DebugLineSegments;
 
   private surface?: Surface;
   private magneticFieldLines?: MagneticFieldLines;
@@ -26,7 +36,7 @@ export class World {
   private lastFrame = 0;
   private rotation = true;
 
-  public constructor(canvas: HTMLCanvasElement, private readonly stats: Stats) {
+  public constructor(canvas: HTMLCanvasElement, private readonly debugMode: boolean, private readonly stats?: Stats) {
     this.renderer = new WebGPURenderer({
       antialias: true,
       canvas
@@ -42,6 +52,25 @@ export class World {
     this.scene = new Scene();
 
     this.noiseHelper = new NoiseTextureHelper();
+    this.magneticPoles = new MagneticPoles();
+    this.magneticConnections = new MagneticConnections(this.magneticPoles);
+
+    if (debugMode) {
+      this.magneticPolesMesh = new MagneticPolesMesh(this.magneticPoles);
+      this.scene.add(this.magneticPolesMesh);
+      this.closedMagneticConnectionsMesh = new DebugLineSegments(
+        this.magneticConnections.closedConnections.flat(),
+        vec4(0, 1, 0, 1),
+        settings => settings.instrument === Instrument.DEBUG_MAGNETOSPHERE
+      );
+      this.scene.add(this.closedMagneticConnectionsMesh);
+      this.openMagneticConnectionsMesh = new DebugLineSegments(
+        this.magneticConnections.openConnections.flatMap(pole => [pole, pole.clone().multiplyScalar(1.1)]),
+        vec4(1, 1, 0, 1),
+        settings => settings.instrument === Instrument.DEBUG_MAGNETOSPHERE
+      );
+      this.scene.add(this.openMagneticConnectionsMesh);
+    }
 
     this.postProcessing = new PostProcessing(this.renderer);
     const scenePass = pass(this.scene, this.camera);
@@ -61,14 +90,14 @@ export class World {
     );
     this.scene.add(this.surface);
 
-    this.magneticFieldLines = new MagneticFieldLines();
+    this.magneticFieldLines = new MagneticFieldLines(this.magneticConnections);
     await this.magneticFieldLines.updateAsync(this.renderer);
 
     const flareFragmentNoise = this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, SurfaceFlares.adpatFragmentNoise);
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
     this.surfaceFlares = new SurfaceFlares(
-      this.magneticFieldLines,      
+      this.magneticFieldLines,
       this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4),
       flareFragmentNoise
     );
@@ -78,8 +107,16 @@ export class World {
   }
 
   public applySettings(settings: Settings): void {
-    this.bloomPass.strength.value = settings.bloomStrength;
-    this.rotation = settings.rotation;
+    if (this.debugMode) {
+      this.bloomPass.strength.value = settings.bloomStrength;
+      this.rotation = settings.rotation;
+      this.magneticPolesMesh?.applySettings(settings);
+      this.closedMagneticConnectionsMesh?.applySettings(settings);
+      this.openMagneticConnectionsMesh?.applySettings(settings);
+    } else {
+      this.bloomPass.strength.value = settings.instrument === Instrument.AIA_304_A ? 0.5 : 0;
+    }
+
     this.surface?.applySettings(settings);
     this.surfaceFlares?.applySettings(settings);
   }
@@ -108,6 +145,6 @@ export class World {
       this.renderer.render(this.scene, this.camera);
     }
 
-    this.stats.update();
+    this.stats?.update();
   }
 }

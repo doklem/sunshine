@@ -38,29 +38,30 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
     const sunSpot = activityMask.mul(sunSpotShape);
     const timeOffset = texture3D(randomNoiseTexture, normalLocal.mul(0.5)).a;
 
-    const tempertureTrubulence = texture3D(
+    const intensityTrubulence = texture3D(
       randomNoiseTexture,
       normalLocal.mul(10).add(time.mul(0.01).sin())
     );
-    const convectionTemperatur = texture3D(
+    const intensityConvection = texture3D(
       voronoiTexture,
-      normalLocal.mul(time.mul(0.5).add(timeOffset).sin().mul(0.1).add(20)).add(tempertureTrubulence)
+      normalLocal.mul(time.mul(0.5).add(timeOffset).sin().mul(0.1).add(20)).add(intensityTrubulence)
     ).r.mul(0.25).add(0.75);
 
     const halo = cameraPosition.normalize().dot(normalWorld).mul(Math.PI).sin().smoothstep(1, 0);
 
     this.renderHMIItensitygram = Fn(() => {
-      const temperature = convectionTemperatur.mul(halo.mul(0.25)).sub(sunSpot);
+      const temperature = intensityConvection.mul(halo.mul(0.25)).sub(sunSpot);
       return vec4(temperature, temperature, temperature, 1);
     });
 
     this.renderHMIItensitygramColored = Fn(() => {
-      const temperature = convectionTemperatur.mul(halo.mul(0.75).add(0.25)).sub(sunSpot);
-      return texture(colorGradientTexture, vec2(temperature, 0.5));
+      const intensity = intensityConvection.mul(halo.mul(0.75).add(0.25)).sub(sunSpot);
+      return texture(colorGradientTexture, vec2(intensity, 0.5));
     });
 
     this.renderAIA304A = Fn(() => {
-      return vec4(0, 0, 0, 1);
+      const brightness = float(0.05).toVar();
+      return vec4(brightness, brightness.mul(0.5), 0, 1);
     });
 
     this.material.outputNode = this.renderHMIItensitygram();

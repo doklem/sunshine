@@ -5,24 +5,38 @@ export class Settings {
 
   private readonly gui = new GUI({ title: 'Sunshine' });
 
-  public instrument = Instrument.AIA_304_A;
-  public bloomStrength = 0;
-  public surface = true;
-  public rotation = true;
+  public instrument: Instrument;
+  public bloomStrength: number;
+  public surface: boolean;
+  public rotation: boolean;
 
-  public constructor(onFinishedChange: () => void) {
+  public constructor(onFinishedChange: () => void, debugMode: boolean) {
     this.gui.onFinishChange(() => onFinishedChange());
-    this.gui.add(
-      this,
-      'instrument',
-      {
-        'HMI Intensitygram': Instrument.HMI_INTENSITYGRAM,
-        'HMI Intensitygram Colored': Instrument.HMI_INTENSITYGRAM_COLORED,
-        'AIA 304 A': Instrument.AIA_304_A
-      }
-    ).name('Instrument');
-    this.gui.add(this, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');
-    this.gui.add(this, 'surface').name('Surface');
-    this.gui.add(this, 'rotation').name('Rotation')
+
+    const instruments: any = {
+      'HMI Intensitygram': Instrument.HMI_INTENSITYGRAM,
+      'HMI Intensitygram Colored': Instrument.HMI_INTENSITYGRAM_COLORED,
+      'AIA 304 A': Instrument.AIA_304_A
+    };
+    if (debugMode) {
+      instruments['Debug Magnetosphere'] = Instrument.DEBUG_MAGNETOSPHERE;
+      this.instrument = Instrument.DEBUG_MAGNETOSPHERE;
+    } else {
+      this.instrument = Instrument.AIA_304_A;
+    }
+    this.gui.add(this, 'instrument', instruments).name('Instrument');
+
+    if (debugMode) {
+      this.bloomStrength = 0;
+      this.surface = false;
+      this.rotation = false;
+      this.gui.add(this, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');
+      this.gui.add(this, 'surface').name('Surface');
+      this.gui.add(this, 'rotation').name('Rotation');
+    } else {
+      this.bloomStrength = 0;
+      this.surface = true;
+      this.rotation = true;
+    }
   }
 }

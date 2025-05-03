@@ -6,8 +6,8 @@ export class Main {
 
   private readonly world: World;
   private readonly canvas: HTMLCanvasElement;
-  private readonly stats: Stats;
   private readonly settings: Settings;
+  private readonly stats?: Stats;
 
   public constructor() {
     const display = document.querySelector<HTMLCanvasElement>('#display');;
@@ -16,24 +16,28 @@ export class Main {
     }
     this.canvas = display;
 
-    this.settings = new Settings(this.applySettings.bind(this));
+    const debugMode = new URLSearchParams(window.location.search).get('debug')?.toUpperCase() === 'TRUE';
 
-    this.stats = new Stats({
-      trackGPU: false,
-      trackHz: false,
-      trackCPT: false,
-      logsPerSecond: 4,
-      graphsPerSecond: 30,
-      samplesLog: 40,
-      samplesGraph: 10,
-      precision: 2,
-      horizontal: false,
-      minimal: false,
-      mode: 0
-    });
-    document.body.appendChild(this.stats.dom);
+    this.settings = new Settings(this.applySettings.bind(this), debugMode);
 
-    this.world = new World(this.canvas, this.stats);
+    if (debugMode) {
+      this.stats = new Stats({
+        trackGPU: false,
+        trackHz: false,
+        trackCPT: false,
+        logsPerSecond: 4,
+        graphsPerSecond: 30,
+        samplesLog: 40,
+        samplesGraph: 10,
+        precision: 2,
+        horizontal: false,
+        minimal: false,
+        mode: 0
+      });
+      document.body.appendChild(this.stats.dom);
+    }
+
+    this.world = new World(this.canvas, debugMode, this.stats);
   }
 
   public async runAsync(): Promise<void> {

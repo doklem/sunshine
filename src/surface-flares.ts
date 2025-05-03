@@ -8,19 +8,19 @@ import { vertexStage } from 'three/src/nodes/TSL.js';
 
 export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
 
-  private static readonly GEOMETRY = new PlaneGeometry(1, 1, MagneticFieldLines.LINE_RESOLUTION, 10);
+  private static readonly GEOMETRY = new PlaneGeometry(1, 1, MagneticFieldLines.CLOSED_LINE_RESOLUTION, 10);
 
   public constructor(magneticFieldLines: MagneticFieldLines, vertexNoise: Texture, fragmentNoise: Texture) {
-    super(SurfaceFlares.GEOMETRY, new NodeMaterial(), magneticFieldLines.count);
+    super(SurfaceFlares.GEOMETRY, new NodeMaterial(), magneticFieldLines.closedCount);
     this.material.transparent = true;
     this.material.depthWrite = false;
     this.material.side = DoubleSide;
 
-    const lineSizeReciprocal = 1 / magneticFieldLines.count;
+    const lineSizeReciprocal = 1 / magneticFieldLines.closedCount;
     const lineId = float(instanceIndex).add(0.5).mul(lineSizeReciprocal);
     const lookupUv = vec2(uv().x, lineId).toVar();
-    const pointOnLineA = texture(magneticFieldLines.upperBounds, lookupUv).toVar();
-    const pointOnLineB = texture(magneticFieldLines.lowerBounds, lookupUv).toVar();
+    const pointOnLineA = texture(magneticFieldLines.closedUpperBounds, lookupUv).toVar();
+    const pointOnLineB = texture(magneticFieldLines.closedLowerBounds, lookupUv).toVar();
     const positionBetweenLines = uv().y.toVar();
     const edgeMask = positionBetweenLines.mul(PI).sin();
     const lineAlpha = mix(pointOnLineA.a, pointOnLineB.a, positionBetweenLines).toVar();

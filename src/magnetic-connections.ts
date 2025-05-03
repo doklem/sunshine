@@ -6,7 +6,7 @@ import { HelperFunctions } from './helper-functions';
 export class MagneticConnections {
 
   private static readonly VECTOR_SIZE = 3;
-  private static readonly MIN_OPEN_CONNECTION_DISTANCE = 0.05;
+  private static readonly MIN_OPEN_CONNECTION_DISTANCE = 0.1;
   private static readonly MIN_CLOSED_CONNECTION_DISTANCE = 0.001;
   private static readonly MAX_CLOSED_CONNECTION_DISTANCE = 0.02;
   private static readonly LATITUDE_THRESHOLD = 0.3;

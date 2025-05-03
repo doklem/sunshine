@@ -10,6 +10,15 @@ export class Settings {
   public surface: boolean;
   public rotation: boolean;
 
+  public readonly magentosphre = {
+    northPoles: false,
+    southPoles: false,
+    closedConnections: true,
+    openConnections: true,
+    closedMagenticFieldLines: true,
+    openMagenticFieldLines: true
+  };
+
   public constructor(onFinishedChange: () => void, debugMode: boolean) {
     this.gui.onFinishChange(() => onFinishedChange());
 
@@ -19,9 +28,8 @@ export class Settings {
       'AIA 304 A': Instrument.AIA_304_A
     };
     if (debugMode) {
-      instruments['Debug Magnetosphere'] = Instrument.DEBUG_MAGNETOSPHERE;
-      instruments['Debug Flow'] = Instrument.DEBUG_FLOW;
-      this.instrument = Instrument.DEBUG_FLOW;
+      instruments['Debug Empty'] = Instrument.DEBUG_EMPTY;
+      this.instrument = Instrument.DEBUG_EMPTY;
     } else {
       this.instrument = Instrument.AIA_304_A;
     }
@@ -29,11 +37,19 @@ export class Settings {
 
     if (debugMode) {
       this.bloomStrength = 0;
-      this.surface = false;
+      this.surface = true;
       this.rotation = false;
       this.gui.add(this, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');
       this.gui.add(this, 'surface').name('Surface');
       this.gui.add(this, 'rotation').name('Rotation');
+
+      const magentosphreFolder = this.gui.addFolder('Magnetosphere');
+      magentosphreFolder.add(this.magentosphre, 'northPoles').name('North Poles');
+      magentosphreFolder.add(this.magentosphre, 'southPoles').name('South Poles');
+      magentosphreFolder.add(this.magentosphre, 'closedConnections').name('Closed Connections');
+      magentosphreFolder.add(this.magentosphre, 'closedMagenticFieldLines').name('Closed Field Lines');
+      magentosphreFolder.add(this.magentosphre, 'openConnections').name('Open Connections');
+      magentosphreFolder.add(this.magentosphre, 'openMagenticFieldLines').name('Open Field Lines');
     } else {
       this.bloomStrength = 0;
       this.surface = true;

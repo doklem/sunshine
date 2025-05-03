@@ -14,6 +14,7 @@ import { MagneticConnections } from './magnetic-connections';
 import { DebugLineSegments } from './debug-line-segments';
 import { Instrument } from './instrument';
 import { DebugSprites } from './debug-sprites';
+import { DebugCurves } from './debug-curves';
 
 export class World {
 
@@ -30,6 +31,7 @@ export class World {
   private readonly magneticSouthPoleMesh?: DebugSprites;
   private readonly closedMagneticConnectionsMesh?: DebugLineSegments;
   private readonly openMagneticConnectionsMesh?: DebugLineSegments;
+  private readonly magneticFieldLinesMesh?: DebugCurves[];
 
   private surface?: Surface;
   private magneticFieldLines?: MagneticFieldLines;
@@ -57,26 +59,35 @@ export class World {
     this.magneticConnections = new MagneticConnections(this.magneticPoles);
 
     if (debugMode) {
-      const magentosphereVisibilty = (settings: Settings) => settings.instrument === Instrument.DEBUG_MAGNETOSPHERE;
-      this.magneticNorthPoleMesh = new DebugSprites(this.magneticPoles.northPoles, vec4(0, 0, 1, 1), magentosphereVisibilty);
+      this.magneticNorthPoleMesh = new DebugSprites(
+        this.magneticPoles.northPoles,
+        vec4(0, 0, 1, 1),
+        (settings: Settings) => settings.magentosphre.northPoles
+      );
       this.scene.add(this.magneticNorthPoleMesh);
 
-      this.magneticSouthPoleMesh = new DebugSprites(this.magneticPoles.southPoles, vec4(1, 0, 0, 1), magentosphereVisibilty);
+      this.magneticSouthPoleMesh = new DebugSprites(
+        this.magneticPoles.southPoles,
+        vec4(1, 0, 0, 1),
+        (settings: Settings) => settings.magentosphre.southPoles
+      );
       this.scene.add(this.magneticSouthPoleMesh);
 
       this.closedMagneticConnectionsMesh = new DebugLineSegments(
         this.magneticConnections.closedConnections.flat(),
-        vec4(0, 1, 0, 1),
-        magentosphereVisibilty
+        vec4(0, 0.3, 0, 1),
+        (settings: Settings) => settings.magentosphre.closedConnections
       );
       this.scene.add(this.closedMagneticConnectionsMesh);
 
       this.openMagneticConnectionsMesh = new DebugLineSegments(
-        this.magneticConnections.openConnections.flatMap(pole => [pole, pole.clone().multiplyScalar(1.1)]),
-        vec4(1, 1, 0, 1),
-        magentosphereVisibilty
+        this.magneticConnections.openConnections.flatMap(pole => [pole, pole.clone().normalize().multiplyScalar(MagneticFieldLines.HIGH_ALTITUDE_RADIUS)]),
+        vec4(0.3, 0.3, 0, 1),
+        (settings: Settings) => settings.magentosphre.openConnections
       );
       this.scene.add(this.openMagneticConnectionsMesh);
+
+      this.magneticFieldLinesMesh = [];
     }
 
     this.postProcessing = new PostProcessing(this.renderer);
@@ -110,6 +121,42 @@ export class World {
     );
     this.scene.add(this.surfaceFlares);
 
+    if (this.magneticFieldLinesMesh) {
+      this.magneticFieldLinesMesh.push(
+        new DebugCurves(
+          this.magneticFieldLines.closedLowerBounds,
+          this.magneticFieldLines.closedCount,
+          vec4(0, 1, 0, 1),
+          (settings: Settings) => settings.magentosphre.closedMagenticFieldLines
+        )
+      );
+      this.magneticFieldLinesMesh.push(
+        new DebugCurves(
+          this.magneticFieldLines.closedUpperBounds,
+          this.magneticFieldLines.closedCount,
+          vec4(0, 1, 0, 1),
+          (settings: Settings) => settings.magentosphre.closedMagenticFieldLines
+        )
+      );
+      this.magneticFieldLinesMesh.push(
+        new DebugCurves(
+          this.magneticFieldLines.openLeftBounds,
+          this.magneticFieldLines.openCount,
+          vec4(1, 1, 0, 1),
+          (settings: Settings) => settings.magentosphre.openMagenticFieldLines
+        )
+      );
+      this.magneticFieldLinesMesh.push(
+        new DebugCurves(
+          this.magneticFieldLines.openRightBounds,
+          this.magneticFieldLines.openCount,
+          vec4(1, 1, 0, 1),
+          (settings: Settings) => settings.magentosphre.openMagenticFieldLines
+        )
+      );
+      this.magneticFieldLinesMesh.forEach(fieldLine => this.scene.add(fieldLine));
+    }
+
     this.renderer.setAnimationLoop(this.onAnimationFrame.bind(this));
   }
 
@@ -121,6 +168,9 @@ export class World {
       this.magneticSouthPoleMesh?.applySettings(settings);
       this.closedMagneticConnectionsMesh?.applySettings(settings);
       this.openMagneticConnectionsMesh?.applySettings(settings);
+      if (this.magneticFieldLinesMesh) {
+        this.magneticFieldLinesMesh.forEach(fieldLine => fieldLine.applySettings(settings));
+      }
     } else {
       this.bloomPass.strength.value = settings.instrument === Instrument.AIA_304_A ? 0.5 : 0;
     }

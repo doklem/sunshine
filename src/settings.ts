@@ -13,10 +13,10 @@ export class Settings {
   public readonly magentosphre = {
     northPoles: false,
     southPoles: false,
-    closedConnections: true,
-    openConnections: true,
-    closedMagenticFieldLines: true,
-    openMagenticFieldLines: true
+    closedConnections: false,
+    openConnections: false,
+    closedMagenticFieldLines: false,
+    openMagenticFieldLines: false
   };
 
   public constructor(onFinishedChange: () => void, debugMode: boolean) {
@@ -29,7 +29,7 @@ export class Settings {
     };
     if (debugMode) {
       instruments['Debug Empty'] = Instrument.DEBUG_EMPTY;
-      this.instrument = Instrument.DEBUG_EMPTY;
+      this.instrument = Instrument.AIA_304_A;
     } else {
       this.instrument = Instrument.AIA_304_A;
     }

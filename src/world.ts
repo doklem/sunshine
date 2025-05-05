@@ -8,13 +8,13 @@ import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { Settings } from './settings';
 import { NoiseTextureHelper } from './noise-texture-helper';
 import { MagneticFieldLines } from './magnetic-field-lines';
-import { SurfaceFlares } from './surface-flares';
 import { MagneticPoles } from './magnetic-poles';
 import { MagneticConnections } from './magnetic-connections';
 import { DebugLineSegments } from './debug-line-segments';
 import { Instrument } from './instrument';
 import { DebugSprites } from './debug-sprites';
 import { DebugCurves } from './debug-curves';
+import { Flares } from './flares';
 
 export class World {
 
@@ -35,7 +35,8 @@ export class World {
 
   private surface?: Surface;
   private magneticFieldLines?: MagneticFieldLines;
-  private surfaceFlares?: SurfaceFlares;
+  private closedFlares?: Flares;
+  private openFlares?: Flares;
   private lastFrame = 0;
   private rotation = true;
 
@@ -115,15 +116,24 @@ export class World {
     this.magneticFieldLines = new MagneticFieldLines(this.magneticConnections);
     await this.magneticFieldLines.updateAsync(this.renderer);
 
-    const flareFragmentNoise = this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, SurfaceFlares.adpatFragmentNoise);
+    const flareFragmentNoise = this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, Flares.adpatFragmentNoise);
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
-    this.surfaceFlares = new SurfaceFlares(
+    const flareVertexNoise = this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
+    this.closedFlares = new Flares(
+      false,
       this.magneticFieldLines,
-      this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4),
+      flareVertexNoise,
       flareFragmentNoise
     );
-    this.scene.add(this.surfaceFlares);
+    this.scene.add(this.closedFlares);
+    this.openFlares = new Flares(
+      true,
+      this.magneticFieldLines,
+      flareVertexNoise,
+      flareFragmentNoise
+    );
+    this.scene.add(this.openFlares);
 
     if (this.magneticFieldLinesMesh) {
       this.magneticFieldLinesMesh.push(
@@ -132,7 +142,8 @@ export class World {
           this.magneticFieldLines.closedCount,
           vec4(0, 1, 0, 1),
           (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
-          MagneticPoles.POLE_ALTITUDE_RADIUS
+          MagneticPoles.POLE_ALTITUDE_RADIUS,
+          MagneticFieldLines.CLOSED_LINE_RESOLUTION
         )
       );
       this.magneticFieldLinesMesh.push(
@@ -141,7 +152,8 @@ export class World {
           this.magneticFieldLines.closedCount,
           vec4(0, 1, 0, 1),
           (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
-          MagneticFieldLines.HIGH_ALTITUDE_RADIUS
+          MagneticFieldLines.HIGH_ALTITUDE_RADIUS,
+          MagneticFieldLines.CLOSED_LINE_RESOLUTION
         )
       );
       this.magneticFieldLinesMesh.push(
@@ -150,7 +162,8 @@ export class World {
           this.magneticFieldLines.openCount,
           vec4(1, 1, 0, 1),
           (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
-          MagneticPoles.POLE_ALTITUDE_RADIUS
+          MagneticPoles.POLE_ALTITUDE_RADIUS,
+          MagneticFieldLines.OPEN_LINE_RESOLUTION
         )
       );
       this.magneticFieldLinesMesh.push(
@@ -159,7 +172,8 @@ export class World {
           this.magneticFieldLines.openCount,
           vec4(1, 1, 0, 1),
           (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
-          MagneticFieldLines.HIGH_ALTITUDE_RADIUS
+          MagneticFieldLines.HIGH_ALTITUDE_RADIUS,
+          MagneticFieldLines.OPEN_LINE_RESOLUTION
         )
       );
       this.magneticFieldLinesMesh.forEach(fieldLine => this.scene.add(fieldLine));
@@ -184,7 +198,8 @@ export class World {
     }
 
     this.surface?.applySettings(settings);
-    this.surfaceFlares?.applySettings(settings);
+    this.closedFlares?.applySettings(settings);
+    this.openFlares?.applySettings(settings);
   }
 
   public onResize(width: number, height: number, devicePixelRatio: number): void {

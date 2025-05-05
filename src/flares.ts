@@ -6,21 +6,30 @@ import { Settings } from './settings';
 import { Instrument } from './instrument';
 import { vertexStage } from 'three/src/nodes/TSL.js';
 
-export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
+export class Flares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
 
-  private static readonly GEOMETRY = new PlaneGeometry(1, 1, MagneticFieldLines.CLOSED_LINE_RESOLUTION, 10);
-
-  public constructor(magneticFieldLines: MagneticFieldLines, vertexNoise: Texture, fragmentNoise: Texture) {
-    super(SurfaceFlares.GEOMETRY, new NodeMaterial(), magneticFieldLines.closedCount);
+  public constructor(open: boolean, magneticFieldLines: MagneticFieldLines, vertexNoise: Texture, fragmentNoise: Texture) {
+    super(
+      new PlaneGeometry(
+        1,
+        1,
+        (open ? MagneticFieldLines.OPEN_LINE_RESOLUTION : MagneticFieldLines.CLOSED_LINE_RESOLUTION) - 1,
+        10
+      ),
+      new NodeMaterial(),
+      open ? magneticFieldLines.openCount : magneticFieldLines.closedCount
+    );
     this.material.transparent = true;
     this.material.depthWrite = false;
     this.material.side = DoubleSide;
 
-    const lineSizeReciprocal = 1 / magneticFieldLines.closedCount;
+    const pixelStart = 0.5 / (open ? MagneticFieldLines.OPEN_LINE_RESOLUTION : MagneticFieldLines.CLOSED_LINE_RESOLUTION);
+    const pixelRange = 1 - 1 / (open ? MagneticFieldLines.OPEN_LINE_RESOLUTION : MagneticFieldLines.CLOSED_LINE_RESOLUTION);
+    const lineSizeReciprocal = 1 / (open ? magneticFieldLines.openCount : magneticFieldLines.closedCount);
     const lineId = float(instanceIndex).add(0.5).mul(lineSizeReciprocal);
-    const lookupUv = vec2(uv().x, lineId).toVar();
-    const pointOnLineA = texture(magneticFieldLines.closedUpperBounds, lookupUv).toVar();
-    const pointOnLineB = texture(magneticFieldLines.closedLowerBounds, lookupUv).toVar();
+    const lookupUv = vec2(uv().x.mul(pixelRange).add(pixelStart), lineId).toVar();
+    const pointOnLineA = texture(open ? magneticFieldLines.openUpperBounds : magneticFieldLines.closedUpperBounds, lookupUv).toVar();
+    const pointOnLineB = texture(open ? magneticFieldLines.openLowerBounds : magneticFieldLines.closedLowerBounds, lookupUv).toVar();
     const positionBetweenLines = uv().y.toVar();
     const edgeMask = positionBetweenLines.mul(PI).sin();
     const lineAlpha = mix(pointOnLineA.a, pointOnLineB.a, positionBetweenLines).toVar();
@@ -31,8 +40,9 @@ export class SurfaceFlares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
       return mix(pointOnLineA.xyz, pointOnLineB.xyz, positionBetweenLines).add(offset);
     })();
 
+    const massProgress = open ? uv().sub(vec2(time, instanceIndex)).mul(vec2(0.01, 0.37)) : uv().add(vec2(time, instanceIndex)).mul(vec2(0.01, 0.37));
     this.material.colorNode = Fn(() => {
-      const noise = texture(fragmentNoise, uv().add(vec2(time, instanceIndex)).mul(vec2(0.01, 0.37))).x;
+      const noise = texture(fragmentNoise, massProgress).x;
       return vec4(1, alpha, 0, alpha.mul(noise));
     })();
 

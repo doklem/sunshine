@@ -5,17 +5,15 @@ import { Fn, positionLocal, texture } from 'three/tsl';
 
 export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> {
 
-  private static readonly DEFAULT_RESOLUTION = 32;
-
   public constructor(
     points: Texture,
     count: number,
     colorNode: Node,
     private visibility: (settings: Settings) => boolean,
     radius: number,
-    resolution?: number) {
+    resolution: number) {
     super(
-      DebugCurves.createGeometry(count, resolution ?? DebugCurves.DEFAULT_RESOLUTION),
+      DebugCurves.createGeometry(count, resolution),
       new NodeMaterial()
     );
 
@@ -37,11 +35,13 @@ export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> {
     const points: Vector2[] = [];
     const countReciprocal = 1 / count;
     const resolutionReciprocal = 1 / resolution;
+    const pixelStart = 0.5 / resolution;
+    const pixelRange = 1 - 1 / resolution;
     for (let y = 0; y < count; y++) {
       const v = (y + 0.5) * countReciprocal;
       for (let x = 0; x < resolution; x++) {
-        points.push(new Vector2(x * resolutionReciprocal, v));
-        points.push(new Vector2((x + 1) * resolutionReciprocal, v));
+        points.push(new Vector2(x * resolutionReciprocal * pixelRange + pixelStart, v));
+        points.push(new Vector2((x + 1) * resolutionReciprocal * pixelRange + pixelStart, v));
       }
     }
     return new BufferGeometry().setFromPoints(points);

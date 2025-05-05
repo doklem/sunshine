@@ -1,5 +1,5 @@
 import { ClampToEdgeWrapping, FloatType, LinearFilter, RGBAFormat } from 'three';
-import { Surface } from './surface';
+import { Surface } from '../meshes/surface';
 import { StorageTexture, WebGPURenderer } from 'three/webgpu';
 import { float, Fn, instanceIndex, Loop, mix, storage, textureStore, vec2, vec3, vec4 } from 'three/tsl';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';

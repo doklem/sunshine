@@ -2,10 +2,11 @@ import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, IcosahedronGeometry
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
 import { cameraPosition, float, Fn, normalLocal, normalWorld, texture, texture3D, time, vec2, vec4 } from 'three/tsl';
 import { NodeMaterial } from 'three/webgpu';
-import { Settings } from './settings';
-import { Instrument } from './instrument';
+import { Settings } from '../configuration/settings';
+import { Instrument } from '../configuration/instrument';
+import { Configurable } from '../configuration/configurable';
 
-export class Surface extends Mesh<BufferGeometry, NodeMaterial> {
+export class Surface extends Mesh<BufferGeometry, NodeMaterial> implements Configurable {
 
   private static readonly GEOMETRY_DETAILS = 15;
 

@@ -1,22 +1,21 @@
 import Stats from 'stats-gl';
-import { PerspectiveCamera, Scene, TextureLoader } from 'three';
+import { Object3D, PerspectiveCamera, Scene, TextureLoader } from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { PostProcessing, WebGPURenderer } from 'three/webgpu';
-import { Surface } from './surface';
-import { pass, vec4 } from 'three/tsl';
+import { Surface } from './meshes/surface';
+import { pass } from 'three/tsl';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
-import { Settings } from './settings';
+import { Settings } from './configuration/settings';
 import { NoiseTextureHelper } from './noise-texture-helper';
-import { MagneticFieldLines } from './magnetic-field-lines';
-import { MagneticPoles } from './magnetic-poles';
-import { MagneticConnections } from './magnetic-connections';
-import { DebugLineSegments } from './debug-line-segments';
-import { Instrument } from './instrument';
-import { DebugSprites } from './debug-sprites';
-import { DebugCurves } from './debug-curves';
-import { Flares } from './flares';
+import { MagneticFieldLines } from './simulation/magnetic-field-lines';
+import { MagneticPoles } from './simulation/magnetic-poles';
+import { MagneticConnections } from './simulation/magnetic-connections';
+import { Instrument } from './configuration/instrument';
+import { Flares } from './meshes/flares';
+import { DebugMeshes } from './debugging/debug-meshes';
+import { Configurable } from './configuration/configurable';
 
-export class World {
+export class World implements Configurable {
 
   private readonly scene: Scene;
   private readonly camera: PerspectiveCamera;
@@ -27,16 +26,10 @@ export class World {
   private readonly noiseHelper: NoiseTextureHelper;
   private readonly magneticPoles: MagneticPoles;
   private readonly magneticConnections: MagneticConnections;
-  private readonly magneticNorthPoleMesh?: DebugSprites;
-  private readonly magneticSouthPoleMesh?: DebugSprites;
-  private readonly closedMagneticConnectionsMesh?: DebugLineSegments;
-  private readonly openMagneticConnectionsMesh?: DebugLineSegments;
-  private readonly magneticFieldLinesMesh?: DebugCurves[];
+  private readonly debugMeshes?: DebugMeshes;
+  private readonly configurables: Configurable[];
 
-  private surface?: Surface;
   private magneticFieldLines?: MagneticFieldLines;
-  private closedFlares?: Flares;
-  private openFlares?: Flares;
   private lastFrame = 0;
   private rotation = true;
 
@@ -59,40 +52,12 @@ export class World {
     this.magneticPoles = new MagneticPoles();
     this.magneticConnections = new MagneticConnections(this.magneticPoles);
 
+    this.configurables = [];
+
     if (debugMode) {
-      this.magneticNorthPoleMesh = new DebugSprites(
-        this.magneticPoles.northPoles,
-        vec4(0, 0, 1, 1),
-        (settings: Settings) => settings.magentosphre.northPoles,
-        MagneticPoles.POLE_ALTITUDE_RADIUS
-      );
-      this.scene.add(this.magneticNorthPoleMesh);
-
-      this.magneticSouthPoleMesh = new DebugSprites(
-        this.magneticPoles.southPoles,
-        vec4(1, 0, 0, 1),
-        (settings: Settings) => settings.magentosphre.southPoles,
-        MagneticPoles.POLE_ALTITUDE_RADIUS
-      );
-      this.scene.add(this.magneticSouthPoleMesh);
-
-      this.closedMagneticConnectionsMesh = new DebugLineSegments(
-        this.magneticConnections.closedConnections.flat(),
-        vec4(0, 0.3, 0, 1),
-        (settings: Settings) => settings.magentosphre.closedConnections,
-        MagneticFieldLines.HIGH_ALTITUDE_RADIUS
-      );
-      this.scene.add(this.closedMagneticConnectionsMesh);
-
-      this.openMagneticConnectionsMesh = new DebugLineSegments(
-        this.magneticConnections.openConnections.flatMap(pole => [pole, pole.clone().normalize().multiplyScalar(MagneticFieldLines.HIGH_ALTITUDE_RADIUS)]),
-        vec4(0.3, 0.3, 0, 1),
-        (settings: Settings) => settings.magentosphre.openConnections,
-        MagneticFieldLines.HIGH_ALTITUDE_RADIUS
-      );
-      this.scene.add(this.openMagneticConnectionsMesh);
-
-      this.magneticFieldLinesMesh = [];
+      this.debugMeshes = new DebugMeshes(this.magneticPoles, this.magneticConnections);
+      this.scene.add(this.debugMeshes);
+      this.configurables.push(this.debugMeshes);
     }
 
     this.postProcessing = new PostProcessing(this.renderer);
@@ -105,13 +70,14 @@ export class World {
   public async startAsync(): Promise<void> {
     const loader = new TextureLoader();
 
-    this.surface = new Surface(
+    let sceneElement: Configurable & Object3D = new Surface(
       this.noiseHelper.createVoronoiTexture3D(64, 1),
       this.noiseHelper.createWhiteNoiseTexture3D(32),
       this.noiseHelper.createSimplexTexture3D(32, 0.25, 1 / 32, 1, 10, 1),
       await loader.loadAsync('hmi-intensitygram-colored.png')
     );
-    this.scene.add(this.surface);
+    this.scene.add(sceneElement);
+    this.configurables.push(sceneElement);
 
     this.magneticFieldLines = new MagneticFieldLines(this.magneticConnections);
     await this.magneticFieldLines.updateAsync(this.renderer);
@@ -120,63 +86,25 @@ export class World {
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
     const flareVertexNoise = this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
-    this.closedFlares = new Flares(
+    sceneElement = new Flares(
       false,
       this.magneticFieldLines,
       flareVertexNoise,
       flareFragmentNoise
     );
-    this.scene.add(this.closedFlares);
-    this.openFlares = new Flares(
+    this.scene.add(sceneElement);
+    this.configurables.push(sceneElement);
+    sceneElement = new Flares(
       true,
       this.magneticFieldLines,
       flareVertexNoise,
       flareFragmentNoise
     );
-    this.scene.add(this.openFlares);
+    this.scene.add(sceneElement);
+    this.configurables.push(sceneElement);
 
-    if (this.magneticFieldLinesMesh) {
-      this.magneticFieldLinesMesh.push(
-        new DebugCurves(
-          this.magneticFieldLines.closedLowerBounds,
-          this.magneticFieldLines.closedCount,
-          vec4(0, 1, 0, 1),
-          (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
-          MagneticPoles.POLE_ALTITUDE_RADIUS,
-          MagneticFieldLines.CLOSED_LINE_RESOLUTION
-        )
-      );
-      this.magneticFieldLinesMesh.push(
-        new DebugCurves(
-          this.magneticFieldLines.closedUpperBounds,
-          this.magneticFieldLines.closedCount,
-          vec4(0, 1, 0, 1),
-          (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
-          MagneticFieldLines.HIGH_ALTITUDE_RADIUS,
-          MagneticFieldLines.CLOSED_LINE_RESOLUTION
-        )
-      );
-      this.magneticFieldLinesMesh.push(
-        new DebugCurves(
-          this.magneticFieldLines.openLowerBounds,
-          this.magneticFieldLines.openCount,
-          vec4(1, 1, 0, 1),
-          (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
-          MagneticPoles.POLE_ALTITUDE_RADIUS,
-          MagneticFieldLines.OPEN_LINE_RESOLUTION
-        )
-      );
-      this.magneticFieldLinesMesh.push(
-        new DebugCurves(
-          this.magneticFieldLines.openUpperBounds,
-          this.magneticFieldLines.openCount,
-          vec4(1, 1, 0, 1),
-          (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
-          MagneticFieldLines.HIGH_ALTITUDE_RADIUS,
-          MagneticFieldLines.OPEN_LINE_RESOLUTION
-        )
-      );
-      this.magneticFieldLinesMesh.forEach(fieldLine => this.scene.add(fieldLine));
+    if (this.debugMeshes) {
+      this.debugMeshes.addCurves(this.magneticFieldLines);
     }
 
     this.renderer.setAnimationLoop(this.onAnimationFrame.bind(this));
@@ -186,20 +114,11 @@ export class World {
     if (this.debugMode) {
       this.bloomPass.strength.value = settings.bloomStrength;
       this.rotation = settings.rotation;
-      this.magneticNorthPoleMesh?.applySettings(settings);
-      this.magneticSouthPoleMesh?.applySettings(settings);
-      this.closedMagneticConnectionsMesh?.applySettings(settings);
-      this.openMagneticConnectionsMesh?.applySettings(settings);
-      if (this.magneticFieldLinesMesh) {
-        this.magneticFieldLinesMesh.forEach(fieldLine => fieldLine.applySettings(settings));
-      }
     } else {
       this.bloomPass.strength.value = settings.instrument === Instrument.AIA_304_A ? 0.5 : 0;
     }
 
-    this.surface?.applySettings(settings);
-    this.closedFlares?.applySettings(settings);
-    this.openFlares?.applySettings(settings);
+    this.configurables.forEach(configurable => configurable.applySettings(settings));
   }
 
   public onResize(width: number, height: number, devicePixelRatio: number): void {

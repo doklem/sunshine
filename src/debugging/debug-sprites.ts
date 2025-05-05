@@ -1,9 +1,10 @@
 import { InstancedMesh, PlaneGeometry, Vector3 } from 'three';
 import { Node, SpriteNodeMaterial } from 'three/webgpu';
 import { instancedArray, instanceIndex } from 'three/tsl';
-import { Settings } from './settings';
+import { Settings } from '../configuration/settings';
+import { Configurable } from '../configuration/configurable';
 
-export class DebugSprites extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> {
+export class DebugSprites extends InstancedMesh<PlaneGeometry, SpriteNodeMaterial> implements Configurable {
 
   private static readonly DEFAULT_SPRITE_SIZE = 0.01;
 

@@ -1,8 +1,9 @@
 import { BufferGeometry, LineSegments, Vector3 } from 'three';
 import { Node, NodeMaterial } from 'three/webgpu';
-import { Settings } from './settings';
+import { Settings } from '../configuration/settings';
+import { Configurable } from '../configuration/configurable';
 
-export class DebugLineSegments extends LineSegments<BufferGeometry, NodeMaterial> {
+export class DebugLineSegments extends LineSegments<BufferGeometry, NodeMaterial> implements Configurable {
 
   public constructor(
     points: Vector3[],

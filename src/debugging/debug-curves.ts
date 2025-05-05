@@ -1,9 +1,10 @@
 import { BufferGeometry, LineSegments, Texture, Vector2 } from 'three';
 import { Node, NodeMaterial } from 'three/webgpu';
-import { Settings } from './settings';
+import { Settings } from '../configuration/settings';
 import { Fn, positionLocal, texture } from 'three/tsl';
+import { Configurable } from '../configuration/configurable';
 
-export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> {
+export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> implements Configurable {
 
   public constructor(
     points: Texture,

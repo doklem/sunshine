@@ -1,6 +1,6 @@
 import Stats from 'stats-gl';
 import { World } from './world';
-import { Settings } from './settings';
+import { Settings } from './configuration/settings';
 
 export class Main {
 

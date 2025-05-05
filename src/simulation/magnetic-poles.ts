@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { Surface } from './surface';
+import { Surface } from '../meshes/surface';
 
 export class MagneticPoles {
 

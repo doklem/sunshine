@@ -1,12 +1,13 @@
 import { DoubleSide, InstancedMesh, PlaneGeometry, Texture } from 'three';
 import { NodeMaterial } from 'three/webgpu';
-import { MagneticFieldLines } from './magnetic-field-lines';
+import { MagneticFieldLines } from '../simulation/magnetic-field-lines';
 import { float, Fn, instanceIndex, mix, PI, texture, time, uv, vec2, vec4 } from 'three/tsl';
-import { Settings } from './settings';
-import { Instrument } from './instrument';
+import { Settings } from '../configuration/settings';
+import { Instrument } from '../configuration/instrument';
 import { vertexStage } from 'three/src/nodes/TSL.js';
+import { Configurable } from '../configuration/configurable';
 
-export class Flares extends InstancedMesh<PlaneGeometry, NodeMaterial> {
+export class Flares extends InstancedMesh<PlaneGeometry, NodeMaterial> implements Configurable {
 
   public constructor(open: boolean, magneticFieldLines: MagneticFieldLines, vertexNoise: Texture, fragmentNoise: Texture) {
     super(

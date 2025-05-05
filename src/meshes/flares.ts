@@ -1,7 +1,7 @@
 import { DoubleSide, InstancedMesh, PlaneGeometry, Texture } from 'three';
 import { NodeMaterial } from 'three/webgpu';
 import { MagneticFieldLines } from '../simulation/magnetic-field-lines';
-import { float, Fn, instanceIndex, mix, PI, texture, time, uv, vec2, vec4 } from 'three/tsl';
+import { float, Fn, instanceIndex, mix, PI, positionLocal, texture, time, uv, vec2, vec4 } from 'three/tsl';
 import { Settings } from '../configuration/settings';
 import { Instrument } from '../configuration/instrument';
 import { vertexStage } from 'three/src/nodes/TSL.js';
@@ -9,14 +9,11 @@ import { Configurable } from '../configuration/configurable';
 
 export class Flares extends InstancedMesh<PlaneGeometry, NodeMaterial> implements Configurable {
 
+  private static readonly HEIGHT_RESOLUTION = 10;
+
   public constructor(open: boolean, magneticFieldLines: MagneticFieldLines, vertexNoise: Texture, fragmentNoise: Texture) {
     super(
-      new PlaneGeometry(
-        1,
-        1,
-        (open ? MagneticFieldLines.OPEN_LINE_RESOLUTION : MagneticFieldLines.CLOSED_LINE_RESOLUTION) - 1,
-        10
-      ),
+      Flares.createGeometry(open ? MagneticFieldLines.OPEN_LINE_RESOLUTION : MagneticFieldLines.CLOSED_LINE_RESOLUTION),
       new NodeMaterial(),
       open ? magneticFieldLines.openCount : magneticFieldLines.closedCount
     );
@@ -24,11 +21,9 @@ export class Flares extends InstancedMesh<PlaneGeometry, NodeMaterial> implement
     this.material.depthWrite = false;
     this.material.side = DoubleSide;
 
-    const pixelStart = 0.5 / (open ? MagneticFieldLines.OPEN_LINE_RESOLUTION : MagneticFieldLines.CLOSED_LINE_RESOLUTION);
-    const pixelRange = 1 - 1 / (open ? MagneticFieldLines.OPEN_LINE_RESOLUTION : MagneticFieldLines.CLOSED_LINE_RESOLUTION);
-    const lineSizeReciprocal = 1 / (open ? magneticFieldLines.openCount : magneticFieldLines.closedCount);
-    const lineId = float(instanceIndex).add(0.5).mul(lineSizeReciprocal);
-    const lookupUv = vec2(uv().x.mul(pixelRange).add(pixelStart), lineId).toVar();
+    const lineCountReciprocal = 1 / (open ? magneticFieldLines.openCount : magneticFieldLines.closedCount);
+    const lineId = float(instanceIndex).add(0.5).mul(lineCountReciprocal);
+    const lookupUv = vec2(positionLocal.x, lineId).toVar();
     const pointOnLineA = texture(open ? magneticFieldLines.openUpperBounds : magneticFieldLines.closedUpperBounds, lookupUv).toVar();
     const pointOnLineB = texture(open ? magneticFieldLines.openLowerBounds : magneticFieldLines.closedLowerBounds, lookupUv).toVar();
     const positionBetweenLines = uv().y.toVar();
@@ -61,5 +56,11 @@ export class Flares extends InstancedMesh<PlaneGeometry, NodeMaterial> implement
     }
     value = Math.max(0.1, value);
     return value;
+  }
+
+  private static createGeometry(resolution: number): PlaneGeometry {
+    const width = 1 - 1 / resolution;
+    return new PlaneGeometry(width, 1, resolution - 1, Flares.HEIGHT_RESOLUTION)
+      .translate(width * 0.5 + 0.5 / resolution, 0, 0);
   }
 }

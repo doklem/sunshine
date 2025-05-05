@@ -23,13 +23,10 @@ export class World implements Configurable {
   private readonly renderer: WebGPURenderer;
   private readonly postProcessing: PostProcessing;
   private readonly bloomPass: BloomNode;
-  private readonly noiseHelper: NoiseTextureHelper;
-  private readonly magneticPoles: MagneticPoles;
   private readonly magneticConnections: MagneticConnections;
   private readonly debugMeshes?: DebugMeshes;
   private readonly configurables: Configurable[];
 
-  private magneticFieldLines?: MagneticFieldLines;
   private lastFrame = 0;
   private rotation = true;
 
@@ -48,14 +45,13 @@ export class World implements Configurable {
 
     this.scene = new Scene();
 
-    this.noiseHelper = new NoiseTextureHelper();
-    this.magneticPoles = new MagneticPoles();
-    this.magneticConnections = new MagneticConnections(this.magneticPoles);
+    const magneticPoles = new MagneticPoles();
+    this.magneticConnections = new MagneticConnections(magneticPoles);
 
     this.configurables = [];
 
     if (debugMode) {
-      this.debugMeshes = new DebugMeshes(this.magneticPoles, this.magneticConnections);
+      this.debugMeshes = new DebugMeshes(magneticPoles, this.magneticConnections);
       this.scene.add(this.debugMeshes);
       this.configurables.push(this.debugMeshes);
     }
@@ -69,26 +65,27 @@ export class World implements Configurable {
 
   public async startAsync(): Promise<void> {
     const loader = new TextureLoader();
+    const noiseHelper = new NoiseTextureHelper();
 
     let sceneElement: Configurable & Object3D = new Surface(
-      this.noiseHelper.createVoronoiTexture3D(64, 1),
-      this.noiseHelper.createWhiteNoiseTexture3D(32),
-      this.noiseHelper.createSimplexTexture3D(32, 0.25, 1 / 32, 1, 10, 1),
+      noiseHelper.createVoronoiTexture3D(64, 1),
+      noiseHelper.createWhiteNoiseTexture3D(32),
+      noiseHelper.createSimplexTexture3D(32, 0.25, 1 / 32, 1, 10, 1),
       await loader.loadAsync('hmi-intensitygram-colored.png')
     );
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
 
-    this.magneticFieldLines = new MagneticFieldLines(this.magneticConnections);
-    await this.magneticFieldLines.updateAsync(this.renderer);
+    const magneticFieldLines = new MagneticFieldLines(this.magneticConnections);
+    await magneticFieldLines.updateAsync(this.renderer);
 
-    const flareFragmentNoise = this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, Flares.adpatFragmentNoise);
+    const flareFragmentNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, Flares.adpatFragmentNoise);
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
-    const flareVertexNoise = this.noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
+    const flareVertexNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
     sceneElement = new Flares(
       false,
-      this.magneticFieldLines,
+      magneticFieldLines,
       flareVertexNoise,
       flareFragmentNoise
     );
@@ -96,7 +93,7 @@ export class World implements Configurable {
     this.configurables.push(sceneElement);
     sceneElement = new Flares(
       true,
-      this.magneticFieldLines,
+      magneticFieldLines,
       flareVertexNoise,
       flareFragmentNoise
     );
@@ -104,7 +101,7 @@ export class World implements Configurable {
     this.configurables.push(sceneElement);
 
     if (this.debugMeshes) {
-      this.debugMeshes.addCurves(this.magneticFieldLines);
+      this.debugMeshes.addCurves(magneticFieldLines);
     }
 
     this.renderer.setAnimationLoop(this.onAnimationFrame.bind(this));

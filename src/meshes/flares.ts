@@ -1,5 +1,5 @@
 import { DoubleSide, InstancedMesh, PlaneGeometry, Texture } from 'three';
-import { NodeMaterial } from 'three/webgpu';
+import { NodeMaterial, StorageTexture } from 'three/webgpu';
 import { MagneticFieldLines } from '../simulation/magnetic-field-lines';
 import { float, Fn, instanceIndex, mix, PI, positionLocal, texture, time, uv, vec2, vec4 } from 'three/tsl';
 import { Settings } from '../configuration/settings';
@@ -11,21 +11,28 @@ export class Flares extends InstancedMesh<PlaneGeometry, NodeMaterial> implement
 
   private static readonly HEIGHT_RESOLUTION = 10;
 
-  public constructor(open: boolean, magneticFieldLines: MagneticFieldLines, vertexNoise: Texture, fragmentNoise: Texture) {
+  public constructor(
+    count: number,
+    resolution: number,
+    upperBounds: StorageTexture,
+    lowerBounds: StorageTexture,
+    massFlowDirection: boolean,
+    vertexNoise: Texture,
+    fragmentNoise: Texture) {
     super(
-      Flares.createGeometry(open ? MagneticFieldLines.OPEN_LINE_RESOLUTION : MagneticFieldLines.CLOSED_LINE_RESOLUTION),
+      Flares.createGeometry(resolution),
       new NodeMaterial(),
-      open ? magneticFieldLines.openCount : magneticFieldLines.closedCount
+      count
     );
     this.material.transparent = true;
     this.material.depthWrite = false;
     this.material.side = DoubleSide;
 
-    const lineCountReciprocal = 1 / (open ? magneticFieldLines.openCount : magneticFieldLines.closedCount);
+    const lineCountReciprocal = 1 / count;
     const lineId = float(instanceIndex).add(0.5).mul(lineCountReciprocal);
     const lookupUv = vec2(positionLocal.x, lineId).toVar();
-    const pointOnLineA = texture(open ? magneticFieldLines.openUpperBounds : magneticFieldLines.closedUpperBounds, lookupUv).toVar();
-    const pointOnLineB = texture(open ? magneticFieldLines.openLowerBounds : magneticFieldLines.closedLowerBounds, lookupUv).toVar();
+    const pointOnLineA = texture(upperBounds, lookupUv).toVar();
+    const pointOnLineB = texture(lowerBounds, lookupUv).toVar();
     const positionBetweenLines = uv().y.toVar();
     const edgeMask = positionBetweenLines.mul(PI).sin();
     const lineAlpha = mix(pointOnLineA.a, pointOnLineB.a, positionBetweenLines).toVar();
@@ -36,7 +43,9 @@ export class Flares extends InstancedMesh<PlaneGeometry, NodeMaterial> implement
       return mix(pointOnLineA.xyz, pointOnLineB.xyz, positionBetweenLines).add(offset);
     })();
 
-    const massProgress = open ? uv().sub(vec2(time, instanceIndex)).mul(vec2(0.01, 0.37)) : uv().add(vec2(time, instanceIndex)).mul(vec2(0.01, 0.37));
+    const massProgress = massFlowDirection
+      ? uv().sub(vec2(time, instanceIndex)).mul(vec2(0.01, 0.37))
+      : uv().add(vec2(time, instanceIndex)).mul(vec2(0.01, 0.37));
     this.material.colorNode = Fn(() => {
       const noise = texture(fragmentNoise, massProgress).x;
       return vec4(1, alpha, 0, alpha.mul(noise));

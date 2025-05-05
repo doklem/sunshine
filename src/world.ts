@@ -84,16 +84,22 @@ export class World implements Configurable {
     flareFragmentNoise.needsUpdate = true;
     const flareVertexNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
     sceneElement = new Flares(
+      magneticFieldLines.closedCount,
+      MagneticFieldLines.CLOSED_LINE_RESOLUTION,
+      magneticFieldLines.closedUpperBounds,
+      magneticFieldLines.closedLowerBounds,
       false,
-      magneticFieldLines,
       flareVertexNoise,
       flareFragmentNoise
     );
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
     sceneElement = new Flares(
+      magneticFieldLines.openCount,
+      MagneticFieldLines.OPEN_LINE_RESOLUTION,
+      magneticFieldLines.openUpperBounds,
+      magneticFieldLines.openLowerBounds,
       true,
-      magneticFieldLines,
       flareVertexNoise,
       flareFragmentNoise
     );

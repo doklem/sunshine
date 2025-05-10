@@ -38,11 +38,12 @@ export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> impl
     const resolutionReciprocal = 1 / resolution;
     const pixelStart = 0.5 / resolution;
     const pixelRange = 1 - 1 / resolution;
+    const xScale = resolutionReciprocal * pixelRange;
     for (let y = 0; y < count; y++) {
       const v = (y + 0.5) * countReciprocal;
       for (let x = 0; x < resolution; x++) {
-        points.push(new Vector2(x * resolutionReciprocal * pixelRange + pixelStart, v));
-        points.push(new Vector2((x + 1) * resolutionReciprocal * pixelRange + pixelStart, v));
+        points.push(new Vector2(x * xScale + pixelStart, v));
+        points.push(new Vector2((x + 1) * xScale + pixelStart, v));
       }
     }
     return new BufferGeometry().setFromPoints(points);

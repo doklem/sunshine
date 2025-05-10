@@ -11,9 +11,11 @@ import { MagneticFieldLines } from './simulation/magnetic-field-lines';
 import { MagneticPoles } from './simulation/magnetic-poles';
 import { MagneticConnections } from './simulation/magnetic-connections';
 import { Instrument } from './configuration/instrument';
-import { Flares } from './meshes/flares';
+import { FlaresBase } from './meshes/flares-base';
 import { DebugMeshes } from './debugging/debug-meshes';
 import { Configurable } from './configuration/configurable';
+import { OpenFlares } from './meshes/open-flares';
+import { ClosedFlares } from './meshes/closed-flares';
 
 export class World implements Configurable {
 
@@ -79,30 +81,14 @@ export class World implements Configurable {
     const magneticFieldLines = new MagneticFieldLines(this.magneticConnections);
     await magneticFieldLines.updateAsync(this.renderer);
 
-    const flareFragmentNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, Flares.adpatFragmentNoise);
+    const flareFragmentNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, FlaresBase.adpatFragmentNoise);
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
     const flareVertexNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
-    sceneElement = new Flares(
-      magneticFieldLines.closedCount,
-      MagneticFieldLines.CLOSED_LINE_RESOLUTION,
-      magneticFieldLines.closedUpperBounds,
-      magneticFieldLines.closedLowerBounds,
-      false,
-      flareVertexNoise,
-      flareFragmentNoise
-    );
+    sceneElement = new ClosedFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise);
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
-    sceneElement = new Flares(
-      magneticFieldLines.openCount,
-      MagneticFieldLines.OPEN_LINE_RESOLUTION,
-      magneticFieldLines.openUpperBounds,
-      magneticFieldLines.openLowerBounds,
-      true,
-      flareVertexNoise,
-      flareFragmentNoise
-    );
+    sceneElement = new OpenFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise);
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
 

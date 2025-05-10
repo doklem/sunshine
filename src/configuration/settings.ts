@@ -19,6 +19,11 @@ export class Settings {
     openMagenticFieldLines: false
   };
 
+  public readonly aia304a = {
+    closedFlares: true,
+    openFlares: true,
+  };
+
   public constructor(onFinishedChange: () => void, debugMode: boolean) {
     this.gui.onFinishChange(() => onFinishedChange());
 
@@ -50,6 +55,12 @@ export class Settings {
       magentosphreFolder.add(this.magentosphre, 'closedMagenticFieldLines').name('Closed Field Lines');
       magentosphreFolder.add(this.magentosphre, 'openConnections').name('Open Connections');
       magentosphreFolder.add(this.magentosphre, 'openMagenticFieldLines').name('Open Field Lines');
+
+      this.aia304a.closedFlares = true;
+      this.aia304a.openFlares = true;
+      const aia304aFolder = this.gui.addFolder('AIA 304 A');
+      aia304aFolder.add(this.aia304a, 'closedFlares').name('Closed Flares');
+      aia304aFolder.add(this.aia304a, 'openFlares').name('Open Flares');
     } else {
       this.bloomStrength = 0;
       this.surface = true;

@@ -6,7 +6,7 @@ import { HelperFunctions } from './helper-functions';
 export class MagneticConnections {
 
   private static readonly VECTOR_SIZE = 3;
-  private static readonly MIN_OPEN_CONNECTION_DISTANCE = 0.1;
+  private static readonly MIN_OPEN_CONNECTION_DISTANCE = 0.08;
   private static readonly MIN_CLOSED_CONNECTION_DISTANCE = 0.001;
   private static readonly MAX_CLOSED_CONNECTION_DISTANCE = 0.02;
   private static readonly LATITUDE_THRESHOLD = 0.3;
@@ -34,7 +34,9 @@ export class MagneticConnections {
         }
       });
 
-      if (closestNorthPole && MagneticConnections.MIN_CLOSED_CONNECTION_DISTANCE < closestDistance && closestDistance < MagneticConnections.MAX_CLOSED_CONNECTION_DISTANCE) {
+      if (closestNorthPole
+        && MagneticConnections.MIN_CLOSED_CONNECTION_DISTANCE < closestDistance
+        && closestDistance < MagneticConnections.MAX_CLOSED_CONNECTION_DISTANCE) {
         this.closedConnections.push([closestNorthPole, southPole]);
         filteredNorthPoles.splice(filteredNorthPoles.indexOf(closestNorthPole), 1);
       }
@@ -48,9 +50,8 @@ export class MagneticConnections {
       MagneticConnections.VECTOR_SIZE
     );
 
-    this.openConnections = magneticPoles.northPoles
-      .filter(pole => MagneticConnections.validOpenConnection(pole, this.closedConnections))
-      .concat(magneticPoles.southPoles.filter(pole => MagneticConnections.validOpenConnection(pole, this.closedConnections)));
+    this.openConnections = magneticPoles.southPoles
+      .filter(pole => MagneticConnections.validOpenConnection(pole, this.closedConnections)).flatMap(pole => [pole, pole]);
     this.openConnectionsBuffer = new StorageBufferAttribute(
       new Float32Array(this.openConnections.flatMap(pole => pole.toArray())),
       MagneticConnections.VECTOR_SIZE

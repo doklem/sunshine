@@ -21,7 +21,8 @@ export class ClosedFlares extends FlaresBase {
       vertexNoise,
       fragmentNoise,
       new Vector2(0.01, 0.37),
-      colorGradient
+      colorGradient,
+      MagneticFieldLines.CLOSED_LARGE_HIGH_ALTITUDE_RADIUS
     );
   }
 

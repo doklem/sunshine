@@ -15,13 +15,14 @@ export class OpenFlares extends FlaresBase {
     colorGradient: Texture) {
     super(
       magneticFieldLines.openCount,
-      new Vector2(MagneticFieldLines.OPEN_LINE_RESOLUTION, 4),
+      new Vector2(MagneticFieldLines.OPEN_LINE_RESOLUTION, 3),
       magneticFieldLines.openLeftBounds,
       magneticFieldLines.openRightBounds,
       vertexNoise,
       fragmentNoise,
       new Vector2(0.001, 0.04),
-      colorGradient
+      colorGradient,
+      MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS
     );
   }
 

@@ -19,7 +19,8 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
     vertexNoise: Texture,
     fragmentNoise: Texture,
     fragmentNoiseZoom: Vector2,
-    colorGradient: Texture) {
+    colorGradient: Texture,
+    maxRadius: number) {
     super(
       FlaresBase.createGeometry(resolution),
       new NodeMaterial(),
@@ -60,7 +61,7 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
     })();
 
     this.computeBoundingSphere();
-    this.boundingSphere!.radius = MagneticFieldLines.CLOSED_HIGH_ALTITUDE_RADIUS;
+    this.boundingSphere!.radius = maxRadius;
   }
 
   public abstract applySettings(settings: Settings): void;

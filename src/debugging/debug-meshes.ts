@@ -40,16 +40,16 @@ export class DebugMeshes extends Group implements Configurable {
       magneticConnections.closedConnections.flat(),
       vec4(0, 0.3, 0, 1),
       (settings: Settings) => settings.magentosphre.closedConnections,
-      MagneticFieldLines.CLOSED_HIGH_ALTITUDE_RADIUS
+      MagneticFieldLines.CLOSED_LARGE_HIGH_ALTITUDE_RADIUS
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
 
     debugElement = new DebugLineSegments(
-      magneticConnections.openConnections.flatMap(pole => [pole, pole.clone().normalize().multiplyScalar(MagneticFieldLines.CLOSED_HIGH_ALTITUDE_RADIUS)]),
+      magneticConnections.openConnections.flatMap(pole => [pole, pole.clone().normalize().multiplyScalar(MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS)]),
       vec4(0.3, 0.3, 0, 1),
       (settings: Settings) => settings.magentosphre.openConnections,
-      MagneticFieldLines.CLOSED_HIGH_ALTITUDE_RADIUS
+      MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
@@ -73,7 +73,7 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.closedCount,
       vec4(0, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
-      MagneticFieldLines.CLOSED_HIGH_ALTITUDE_RADIUS,
+      MagneticFieldLines.CLOSED_LARGE_HIGH_ALTITUDE_RADIUS,
       MagneticFieldLines.CLOSED_LINE_RESOLUTION
     );
     this.add(debugElement);
@@ -95,7 +95,7 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.openCount,
       vec4(1, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
-      MagneticFieldLines.CLOSED_HIGH_ALTITUDE_RADIUS,
+      MagneticFieldLines.CLOSED_LARGE_HIGH_ALTITUDE_RADIUS,
       MagneticFieldLines.OPEN_LINE_RESOLUTION
     );
     this.add(debugElement);

@@ -41,7 +41,7 @@ export class Settings {
     this.gui.add(this, 'instrument', instruments).name('Instrument');
 
     if (debugMode) {
-      this.bloomStrength = 0;
+      this.bloomStrength = 0.5;
       this.surface = true;
       this.rotation = false;
       this.gui.add(this, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');

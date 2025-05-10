@@ -18,7 +18,8 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
     rightBounds: StorageTexture,
     vertexNoise: Texture,
     fragmentNoise: Texture,
-    fragmentNoiseZoom: Vector2) {
+    fragmentNoiseZoom: Vector2,
+    colorGradient: Texture) {
     super(
       FlaresBase.createGeometry(resolution),
       new NodeMaterial(),
@@ -38,16 +39,24 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
 
     const stiffness = mix(leftLinePoint.a, rightLinePoint.a, positionBetweenLines);
     const offset = texture(vertexNoise, vec2(time.mul(0.1), lineId)).xyz.mul(stiffness.oneMinus());
-    const finalPosition = mix(leftLinePoint.xyz, rightLinePoint.xyz, positionBetweenLines).add(offset).toVar();
-    const heightMask = this.createHightMask(finalPosition);
+    const position = mix(leftLinePoint.xyz, rightLinePoint.xyz, positionBetweenLines).add(offset).toVar();
+    const heightSqVertexStage = position.lengthSq().toVar();
+    const heightMask = this.createHightMask(heightSqVertexStage);
     const alpha = vertexStage(heightMask.mul(edgeMask));
+    const heightSq = vertexStage(heightSqVertexStage);
 
-    this.material.positionNode = finalPosition;
+    this.material.positionNode = position;
 
     this.material.colorNode = Fn(() => {
-      const noise = texture(fragmentNoise, uv().sub(vec2(time, instanceIndex)).mul(vec2(fragmentNoiseZoom.x, fragmentNoiseZoom.y))).x;
-      const brightness = float(0.05).mul(alpha.mul(20)).toVar();
-      return vec4(brightness, brightness.mul(0.5), 0, alpha.mul(noise));
+      const noise = texture(
+        fragmentNoise,
+        uv().sub(vec2(time, instanceIndex)).mul(vec2(fragmentNoiseZoom.x, fragmentNoiseZoom.y))
+      ).x;
+
+      const intensity = heightSq.smoothstep(FlaresBase.SURFACE_RADIUS_SQUARED * 1.2, FlaresBase.SURFACE_RADIUS_SQUARED).add(alpha.mul(1));
+      const color = texture(colorGradient, vec2(intensity, 0.5)).xyz;
+
+      return vec4(color, alpha.mul(noise));
     })();
 
     this.computeBoundingSphere();
@@ -64,7 +73,7 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
     return value;
   }
 
-  protected abstract createHightMask(position: ShaderNodeObject<VarNode>): ShaderNodeObject<Node>;
+  protected abstract createHightMask(heightSq: ShaderNodeObject<VarNode>): ShaderNodeObject<Node>;
 
   private static createGeometry(resolution: Vector2): PlaneGeometry {
     const width = 1 - 1 / resolution.x;

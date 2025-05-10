@@ -85,10 +85,10 @@ export class World implements Configurable {
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
     const flareVertexNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
-    sceneElement = new ClosedFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise);
+    sceneElement = new ClosedFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise, await loader.loadAsync('aia-304-a-closed-flare.png'));
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
-    sceneElement = new OpenFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise);
+    sceneElement = new OpenFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise, await loader.loadAsync('aia-304-a-open-flare.png'));
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
 

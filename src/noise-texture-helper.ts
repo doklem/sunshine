@@ -1,6 +1,5 @@
 import { Data3DTexture, DataTexture, FloatType, LinearFilter, MathUtils, RedFormat, RepeatWrapping, RGBAFormat, RGFormat, Vector3 } from 'three';
 import { SimplexNoise } from 'three/examples/jsm/Addons.js';
-import { RandomValues } from './random-values';
 
 export class NoiseTextureHelper {
 
@@ -211,7 +210,7 @@ export class NoiseTextureHelper {
   public createVoronoiTexture3D(size: number, volumeSize: number): Data3DTexture {
     const sizeReciprocal = volumeSize / size;
 
-    const points = RandomValues.createPoints(volumeSize);
+    const points = NoiseTextureHelper.createPoints(volumeSize);
     const data = new Float32Array(size * size * size);
     let point: Vector3;
     let offset = 0;
@@ -248,7 +247,7 @@ export class NoiseTextureHelper {
   }
 
   public createWhiteNoiseTexture3D(size: number): Data3DTexture {
-    const texture = new Data3DTexture(RandomValues.createValues(size), size, size, size);
+    const texture = new Data3DTexture(NoiseTextureHelper.createValues(size), size, size, size);
     texture.format = RGBAFormat;
     texture.type = FloatType;
     texture.minFilter = LinearFilter;
@@ -278,6 +277,44 @@ export class NoiseTextureHelper {
       amplitude *= 0.5;
     }
     return value;
+  }
+  
+  private static createPoints(volumeeSize: number): Vector3[] {
+    const points: Vector3[] = [];
+    const step = volumeeSize * 0.1;
+    const originVector = new Vector3();
+    let point: Vector3;
+    let x: number;
+    let y: number;
+    let z: number;
+    for (z = 0; z < volumeeSize; z += step) {
+      for (y = 0; y < volumeeSize; y += step) {
+        for (x = 0; x < volumeeSize; x += step) {
+          point = new Vector3(step, step, step)
+            .multiply(new Vector3(Math.random(), Math.random(), Math.random()))
+            .add(originVector.set(x, y, z));
+          points.push(point);
+
+          point = new Vector3(step, step, step)
+            .multiply(new Vector3(Math.random(), Math.random(), Math.random()))
+            .add(originVector.set(x, y, z));
+          points.push(point);
+        }
+      }
+    }
+    return points;
+  }
+
+  private static createValues(size: number): Float32Array {
+    const size3d = size * size * size * 4;
+    const values: number[] = [];
+    for (let offset = 0; offset < size3d; offset += 4) {
+      values.push((Math.random() - 0.5) * 0.05);
+      values.push((Math.random() - 0.5) * 0.05);
+      values.push((Math.random() - 0.5) * 0.05);
+      values.push(Math.random() * 10);
+    }
+    return new Float32Array(values);
   }
 
   private static configureTexture<TTexture extends DataTexture | Data3DTexture>(texture: TTexture, components: number): TTexture {

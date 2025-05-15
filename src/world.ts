@@ -69,17 +69,19 @@ export class World implements Configurable {
     const loader = new TextureLoader();
     const noiseHelper = new NoiseTextureHelper();
 
+    await this.magneticConnections.updateAsync(this.renderer);
+
+    const magneticFieldLines = new MagneticFieldLines(this.magneticConnections);
+    await magneticFieldLines.updateAsync(this.renderer);
+
     let sceneElement: Configurable & Object3D = new Surface(
       noiseHelper.createVoronoiTexture3D(64, 1),
       noiseHelper.createWhiteNoiseTexture3D(32),
-      noiseHelper.createSimplexTexture3D(32, 0.25, 1 / 32, 1, 10, 1),
+      this.magneticConnections.sunspotsTexture,
       await loader.loadAsync('hmi-intensitygram-colored.png')
     );
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
-
-    const magneticFieldLines = new MagneticFieldLines(this.magneticConnections);
-    await magneticFieldLines.updateAsync(this.renderer);
 
     const flareFragmentNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, FlaresBase.adpatFragmentNoise);
     flareFragmentNoise.generateMipmaps = true;
@@ -101,12 +103,10 @@ export class World implements Configurable {
 
   public applySettings(settings: Settings): void {
     if (this.debugMode) {
-      this.bloomPass.strength.value = settings.bloomStrength;
       this.rotation = settings.rotation;
-    } else {
-      this.bloomPass.strength.value = settings.instrument === Instrument.AIA_304_A ? 0.5 : 0;
     }
 
+    this.bloomPass.strength.value = settings.instrument === Instrument.AIA_304_A ? settings.aia304a.bloomStrength : 0;
     this.configurables.forEach(configurable => configurable.applySettings(settings));
   }
 

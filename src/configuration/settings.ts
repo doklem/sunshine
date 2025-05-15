@@ -6,7 +6,6 @@ export class Settings {
   private readonly gui = new GUI({ title: 'Sunshine' });
 
   public instrument: Instrument;
-  public bloomStrength: number;
   public surface: boolean;
   public rotation: boolean;
 
@@ -22,6 +21,7 @@ export class Settings {
   public readonly aia304a = {
     closedFlares: true,
     openFlares: true,
+    bloomStrength: 0.5
   };
 
   public constructor(onFinishedChange: () => void, debugMode: boolean) {
@@ -34,17 +34,15 @@ export class Settings {
     };
     if (debugMode) {
       instruments['Debug Empty'] = Instrument.DEBUG_EMPTY;
-      this.instrument = Instrument.AIA_304_A;
+      this.instrument = Instrument.HMI_INTENSITYGRAM_COLORED;
     } else {
       this.instrument = Instrument.AIA_304_A;
     }
     this.gui.add(this, 'instrument', instruments).name('Instrument');
 
     if (debugMode) {
-      this.bloomStrength = 0.5;
       this.surface = true;
       this.rotation = false;
-      this.gui.add(this, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');
       this.gui.add(this, 'surface').name('Surface');
       this.gui.add(this, 'rotation').name('Rotation');
 
@@ -61,8 +59,8 @@ export class Settings {
       const aia304aFolder = this.gui.addFolder('AIA 304 A');
       aia304aFolder.add(this.aia304a, 'closedFlares').name('Closed Flares');
       aia304aFolder.add(this.aia304a, 'openFlares').name('Open Flares');
+      aia304aFolder.add(this.aia304a, 'bloomStrength', 0, 1, 0.01).name('Bloom Strength');
     } else {
-      this.bloomStrength = 0;
       this.surface = true;
       this.rotation = true;
     }

@@ -1,5 +1,5 @@
 import { Node, Vector3 } from 'three/webgpu';
-import { Fn, mix, ShaderNodeObject, vec3 } from 'three/tsl';
+import { Fn, mix, ShaderNodeObject, vec3, vec4 } from 'three/tsl';
 
 export class HelperFunctions {
 
@@ -9,9 +9,11 @@ export class HelperFunctions {
     ShaderNodeObject<Node>,
     ShaderNodeObject<Node>
   ]>(([firstPoint, secondPoint, thirdPoint, progress]) => {
-    const firstHigherPoint = mix(firstPoint, secondPoint, progress).toVar();
-    const secondHigherPoint = mix(secondPoint, thirdPoint, progress).toVar();
-    return mix(firstHigherPoint, secondHigherPoint, progress);
+    return mix(
+      mix(firstPoint, secondPoint, progress),
+      mix(secondPoint, thirdPoint, progress),
+      progress
+    );
   });
 
   public static readonly qubicBezier = Fn<[
@@ -21,10 +23,12 @@ export class HelperFunctions {
     ShaderNodeObject<Node>,
     ShaderNodeObject<Node>
   ]>(([firstPoint, secondPoint, thirdPoint, fourthPoint, progress]) => {
-    const firstHigherPoint = mix(firstPoint, secondPoint, progress).toVar();
-    const secondHigherPoint = mix(secondPoint, thirdPoint, progress).toVar();
-    const thirdHigherPoint = mix(thirdPoint, fourthPoint, progress).toVar();
-    return HelperFunctions.quadraticBezier(firstHigherPoint, secondHigherPoint, thirdHigherPoint, progress);
+    return HelperFunctions.quadraticBezier(
+      mix(firstPoint, secondPoint, progress),
+      mix(secondPoint, thirdPoint, progress),
+      mix(thirdPoint, fourthPoint, progress),
+      progress
+    );
   });
 
   public static readonly rotate = Fn<[
@@ -33,21 +37,20 @@ export class HelperFunctions {
     ShaderNodeObject<Node>
   ]>(([vector, axis, angle]) => {
     const halfAngle = angle.mul(0.5).toVar();
-    const s = halfAngle.sin().toVar();
+    const q = vec4(axis.mul(halfAngle.sin()), halfAngle.cos()).toVar();
+    const t = q.yzx.mul(vector.zxy).sub(q.zxy.mul(vector.yzx)).mul(2).toVar();
+    return vector.add(t.mul(q.w)).add(q.yzx.mul(t.zxy)).sub(q.zxy.mul(t.yzx));
+  });
 
-    const x = axis.x.mul(s).toVar();
-    const y = axis.y.mul(s).toVar();
-    const z = axis.z.mul(s).toVar();
-    const w = halfAngle.cos();
-
-    const tx = y.mul(vector.z).sub(z.mul(vector.y)).mul(2).toVar();
-    const ty = z.mul(vector.x).sub(x.mul(vector.z)).mul(2).toVar();
-    const tz = x.mul(vector.y).sub(y.mul(vector.x)).mul(2).toVar();
-
+  public static readonly uvToPointOnSphere = Fn<[
+    ShaderNodeObject<Node>
+  ]>(([uv]) => {
+    const latitude = uv.y.mul(Math.PI).sub(Math.PI / 2).toVar(); // v -> [-π/2, π/2]
+    const longitude = uv.x.mul(2 * Math.PI).sub(Math.PI).toVar(); // u -> [-π, π]
     return vec3(
-      vector.x.add(w.mul(tx)).add(y.mul(tz)).sub(z.mul(ty)),
-      vector.y.add(w.mul(ty)).add(z.mul(tx)).sub(x.mul(tz)),
-      vector.z.add(w.mul(tz)).add(x.mul(ty)).sub(y.mul(tx))
+      latitude.cos().mul(longitude.cos()).negate(),
+      latitude.sin(),
+      latitude.cos().mul(longitude.sin())
     );
   });
 
@@ -62,23 +65,15 @@ export class HelperFunctions {
       return lineEnd;
     }
 
-    return lineStart.clone().multiplyScalar(bSide).add(lineEnd.clone().multiplyScalar(aSide)).divideScalar(Math.pow(lineStart.clone().sub(lineEnd).length(), 2));
+    return lineStart
+      .clone()
+      .multiplyScalar(bSide)
+      .add(lineEnd.clone().multiplyScalar(aSide))
+      .divideScalar(Math.pow(lineStart.clone().sub(lineEnd).length(), 2));
   }
 
   public static distanceToLine(lineStart: Vector3, lineEnd: Vector3, point: Vector3): number {
     const closestPointOnLine = HelperFunctions.closestPointOnLine(lineStart, lineEnd, point);
     return point.clone().sub(closestPointOnLine).length();
-    /*const aSide = point.clone().sub(lineStart).dot(lineEnd.clone().sub(lineStart));
-    if (aSide < 0.0) {
-      return point.clone().sub(lineStart).length();
-    }
-
-    const bSide = point.clone().sub(lineEnd).dot(lineStart.clone().sub(lineEnd));
-    if (bSide < 0.0) {
-      return point.clone().sub(lineEnd).length();
-    }
-
-    const pointOnLine = lineStart.clone().multiplyScalar(bSide).add(lineEnd.clone().multiplyScalar(aSide)).divideScalar(Math.pow(lineStart.clone().sub(lineEnd).length(), 2));
-    return point.clone().sub(pointOnLine).length();*/
   }
 }

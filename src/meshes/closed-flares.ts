@@ -15,14 +15,13 @@ export class ClosedFlares extends FlaresBase {
     colorGradient: Texture) {
     super(
       magneticFieldLines.closedCount,
-      new Vector2(MagneticFieldLines.CLOSED_LINE_RESOLUTION, 8),
+      new Vector2(MagneticFieldLines.CLOSED_LINE_RESOLUTION, 10),
       magneticFieldLines.closedLeftBounds,
       magneticFieldLines.closedRightBounds,
       vertexNoise,
       fragmentNoise,
       new Vector2(0.01, 0.37),
-      colorGradient,
-      MagneticFieldLines.CLOSED_LARGE_HIGH_ALTITUDE_RADIUS
+      colorGradient
     );
   }
 

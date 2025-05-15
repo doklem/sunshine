@@ -1,7 +1,6 @@
 import { DoubleSide, InstancedMesh, PlaneGeometry, Texture, Vector2 } from 'three';
-import { Node, NodeMaterial, StorageTexture, VarNode } from 'three/webgpu';
-import { MagneticFieldLines } from '../simulation/magnetic-field-lines';
-import { float, Fn, instanceIndex, mix, PI, positionLocal, texture, time, uv, vec2, vec4 } from 'three/tsl';
+import { Node, NodeMaterial, StorageBufferAttribute, VarNode } from 'three/webgpu';
+import { float, Fn, instanceIndex, mix, PI, positionLocal, storage, texture, time, uv, vec2, vec4 } from 'three/tsl';
 import { Settings } from '../configuration/settings';
 import { ShaderNodeObject, vertexStage } from 'three/src/nodes/TSL.js';
 import { Configurable } from '../configuration/configurable';
@@ -14,13 +13,12 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
   protected constructor(
     count: number,
     resolution: Vector2,
-    leftBounds: StorageTexture,
-    rightBounds: StorageTexture,
+    leftBounds: StorageBufferAttribute,
+    rightBounds: StorageBufferAttribute,
     vertexNoise: Texture,
     fragmentNoise: Texture,
     fragmentNoiseZoom: Vector2,
-    colorGradient: Texture,
-    maxRadius: number) {
+    colorGradient: Texture) {
     super(
       FlaresBase.createGeometry(resolution),
       new NodeMaterial(),
@@ -32,9 +30,9 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
 
     const lineCountReciprocal = 1 / count;
     const lineId = float(instanceIndex).add(0.5).mul(lineCountReciprocal);
-    const lookupUv = vec2(positionLocal.x, lineId).toVar();
-    const leftLinePoint = texture(leftBounds, lookupUv).toVar();
-    const rightLinePoint = texture(rightBounds, lookupUv).toVar();
+    const pointIndex = positionLocal.x.add(instanceIndex.mul(resolution.x)).toVar();
+    const leftLinePoint = storage(leftBounds, 'vec4').element(pointIndex).toVar();
+    const rightLinePoint = storage(rightBounds, 'vec4').element(pointIndex).toVar();
     const positionBetweenLines = uv().y.toVar();
     const edgeMask = positionBetweenLines.mul(PI).sin();
 
@@ -59,9 +57,6 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
 
       return vec4(color, alpha.mul(noise));
     })();
-
-    this.computeBoundingSphere();
-    this.boundingSphere!.radius = maxRadius;
   }
 
   public abstract applySettings(settings: Settings): void;
@@ -77,8 +72,8 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
   protected abstract createHightMask(heightSq: ShaderNodeObject<VarNode>): ShaderNodeObject<Node>;
 
   private static createGeometry(resolution: Vector2): PlaneGeometry {
-    const width = 1 - 1 / resolution.x;
-    return new PlaneGeometry(width, 1, resolution.x - 1, resolution.y)
-      .translate(width * 0.5 + 0.5 / resolution.x, 0, 0);
+    const width = resolution.x - 1;
+    return new PlaneGeometry(width, 1, width, resolution.y)
+      .translate(width * 0.5, 0, 0);
   }
 }

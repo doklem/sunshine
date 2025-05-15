@@ -9,7 +9,6 @@ export class MagneticConnections {
   private static readonly MIN_OPEN_CONNECTION_DISTANCE = 0.08;
   private static readonly MIN_CLOSED_CONNECTION_DISTANCE = 0.001;
   private static readonly MAX_CLOSED_CONNECTION_DISTANCE = 0.02;
-  private static readonly LATITUDE_THRESHOLD = 0.3;
 
   public readonly closedConnections: Vector3[][];
   public readonly closedConnectionsBuffer: StorageBufferAttribute;
@@ -20,13 +19,12 @@ export class MagneticConnections {
   public constructor(magneticPoles: MagneticPoles) {
     this.closedConnections = [];
     let distance: number;
-    const filteredSouthPoles = magneticPoles.southPoles.filter(pole => Math.abs(pole.y) < MagneticConnections.LATITUDE_THRESHOLD);
-    let filteredNorthPoles = magneticPoles.northPoles.filter(pole => Math.abs(pole.y) < MagneticConnections.LATITUDE_THRESHOLD);
-    filteredSouthPoles.forEach(southPole => {
+    let northPoles = [...magneticPoles.northPoles];
+    magneticPoles.southPoles.forEach(southPole => {
       let closestNorthPole: Vector3 | undefined;
       let closestDistance = Number.MAX_SAFE_INTEGER;
 
-      filteredNorthPoles.forEach(northPole => {
+      northPoles.forEach(northPole => {
         distance = northPole.distanceToSquared(southPole);
         if (distance < closestDistance) {
           closestDistance = distance;
@@ -38,7 +36,7 @@ export class MagneticConnections {
         && MagneticConnections.MIN_CLOSED_CONNECTION_DISTANCE < closestDistance
         && closestDistance < MagneticConnections.MAX_CLOSED_CONNECTION_DISTANCE) {
         this.closedConnections.push([closestNorthPole, southPole]);
-        filteredNorthPoles.splice(filteredNorthPoles.indexOf(closestNorthPole), 1);
+        northPoles.splice(northPoles.indexOf(closestNorthPole), 1);
       }
     });
 

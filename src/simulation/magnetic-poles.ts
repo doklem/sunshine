@@ -3,10 +3,12 @@ import { Surface } from '../meshes/surface';
 
 export class MagneticPoles {
 
-  private static readonly NORTH_POLE_COUNT = 45;
-  private static readonly SOUTH_POLE_COUNT = 600;
+  private static readonly NORTH_POLE_COUNT = 40;
+  private static readonly SOUTH_POLE_COUNT = 500;
+  private static readonly NORTH_POLE_LATITUDE_HIGH = 0.1;
+  private static readonly NORTH_POLE_LATITUDE_LOW = -0.2;
   
-  public static readonly POLE_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 0.99;
+  public static readonly POLE_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 0.95;
 
   public readonly northPoles: Vector3[];
   public readonly southPoles: Vector3[];
@@ -15,7 +17,7 @@ export class MagneticPoles {
     this.northPoles = MagneticPoles.fibonacciSphere(
       MagneticPoles.NORTH_POLE_COUNT,
       MagneticPoles.POLE_ALTITUDE_RADIUS
-    );
+    ).filter(pole => MagneticPoles.NORTH_POLE_LATITUDE_HIGH > pole.y && pole.y > MagneticPoles.NORTH_POLE_LATITUDE_LOW);
     this.southPoles = MagneticPoles.fibonacciSphere(
       MagneticPoles.SOUTH_POLE_COUNT,
       MagneticPoles.POLE_ALTITUDE_RADIUS

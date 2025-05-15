@@ -62,7 +62,6 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.closedCount,
       vec4(0, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
-      MagneticPoles.POLE_ALTITUDE_RADIUS,
       MagneticFieldLines.CLOSED_LINE_RESOLUTION
     );
     this.add(debugElement);
@@ -73,7 +72,6 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.closedCount,
       vec4(0, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
-      MagneticFieldLines.CLOSED_LARGE_HIGH_ALTITUDE_RADIUS,
       MagneticFieldLines.CLOSED_LINE_RESOLUTION
     );
     this.add(debugElement);
@@ -84,7 +82,6 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.openCount,
       vec4(1, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
-      MagneticPoles.POLE_ALTITUDE_RADIUS,
       MagneticFieldLines.OPEN_LINE_RESOLUTION
     );
     this.add(debugElement);
@@ -95,7 +92,6 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.openCount,
       vec4(1, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
-      MagneticFieldLines.CLOSED_LARGE_HIGH_ALTITUDE_RADIUS,
       MagneticFieldLines.OPEN_LINE_RESOLUTION
     );
     this.add(debugElement);

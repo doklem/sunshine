@@ -1,38 +1,39 @@
-import { ClampToEdgeWrapping, FloatType, LinearFilter, RGBAFormat, Texture } from 'three';
 import { Surface } from '../meshes/surface';
-import { StorageBufferAttribute, StorageTexture, WebGPURenderer } from 'three/webgpu';
-import { float, Fn, instanceIndex, Loop, mix, storage, textureStore, vec2, vec3, vec4 } from 'three/tsl';
+import { StorageBufferAttribute, WebGPURenderer } from 'three/webgpu';
+import { float, Fn, instanceIndex, Loop, mix, storage, vec3, vec4 } from 'three/tsl';
 import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
 import { MagneticConnections } from './magnetic-connections';
 import { HelperFunctions } from './helper-functions';
 
 export class MagneticFieldLines {
 
-  public static readonly CLOSED_LINE_RESOLUTION = 64;
+  public static readonly CLOSED_LINE_RESOLUTION = 24;
   public static readonly OPEN_LINE_RESOLUTION = 4;
   public static readonly CLOSED_LARGE_HIGH_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 1.4;
   public static readonly OPEN_HIGH_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 1.5;
 
+  private static readonly LINE_POINT_LENGTH = 4;
   private static readonly CLOSED_SMALL_HIGH_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 1.1;
   private static readonly CLOSED_MEDIUM_HIGH_ALTITUDE_RADIUS = Surface.GEOMETRY_RADIUS * 1.2;
-  private static readonly CLOSED_LINE_RESOLUTION_RECIPROCAL = 1 / MagneticFieldLines.CLOSED_LINE_RESOLUTION;
+  private static readonly CLOSED_LINE_RESOLUTION_RECIPROCAL = 1 / (MagneticFieldLines.CLOSED_LINE_RESOLUTION - 1);
   private static readonly CLOSED_LINE_HIGHT_VARIANCE = 0.2;
   private static readonly CLOSED_MEDIUM_LINE_STRETCH = 0.1;
   private static readonly CLOSED_LARGE_LINE_STRETCH = 0.2;
-  private static readonly OPEN_LINE_RESOLUTION_RECIPROCAL = 1 / MagneticFieldLines.OPEN_LINE_RESOLUTION;
+  private static readonly OPEN_LINE_RESOLUTION_RECIPROCAL = 1 / (MagneticFieldLines.OPEN_LINE_RESOLUTION - 1);
   private static readonly CLOSED_SMALL_LINE_MIN_ANGLE = Math.PI * 0.01;
   private static readonly CLOSED_MEDIUM_LINE_MIN_ANGLE = Math.PI * 0.03;
   private static readonly CLOSED_LARGE_LINE_MIN_ANGLE = Math.PI * 0.04;
-  private static readonly OPEN_LINE_ANGLE = Math.PI * 0.04;
+  private static readonly OPEN_LOW_ANGLE = Math.PI * 0.04;
+  private static readonly OPEN_HIGH_ANGLE = 0.1;
   private static readonly CLOSED_LOW_ALTITUDE_STIFFNESS = Math.pow(Surface.GEOMETRY_RADIUS * 1.02, 2);
   private static readonly CLOSED_HIGH_ALTITUDE_STIFFNESS = Math.pow(Surface.GEOMETRY_RADIUS * 1.5, 2);
 
   public readonly closedCount: number;
-  public readonly closedLeftBounds: Texture;
-  public readonly closedRightBounds: Texture;
+  public readonly closedLeftBounds: StorageBufferAttribute;
+  public readonly closedRightBounds: StorageBufferAttribute;
   public readonly openCount: number;
-  public readonly openLeftBounds: Texture;
-  public readonly openRightBounds: Texture;
+  public readonly openLeftBounds: StorageBufferAttribute;
+  public readonly openRightBounds: StorageBufferAttribute;
 
   private readonly computeSmallClosed: ShaderNodeFn<[]>;
   private readonly computeMediumClosed: ShaderNodeFn<[]>;
@@ -41,8 +42,9 @@ export class MagneticFieldLines {
 
   public constructor(private readonly magneticConnections: MagneticConnections) {
     this.closedCount = magneticConnections.closedConnections.length * 3; // Small, medium and large lines
-    this.closedLeftBounds = MagneticFieldLines.createBoundsTexture(MagneticFieldLines.CLOSED_LINE_RESOLUTION, this.closedCount);
-    this.closedRightBounds = MagneticFieldLines.createBoundsTexture(MagneticFieldLines.CLOSED_LINE_RESOLUTION, this.closedCount);
+    const closedBoundsLength = MagneticFieldLines.CLOSED_LINE_RESOLUTION * this.closedCount;
+    this.closedLeftBounds = new StorageBufferAttribute(closedBoundsLength, MagneticFieldLines.LINE_POINT_LENGTH);
+    this.closedRightBounds = new StorageBufferAttribute(closedBoundsLength, MagneticFieldLines.LINE_POINT_LENGTH);
     this.computeSmallClosed = this.createComputeClosed(
       magneticConnections.closedConnectionsBuffer,
       0,
@@ -65,30 +67,42 @@ export class MagneticFieldLines {
     );
 
     this.openCount = magneticConnections.openConnections.length;
-    this.openLeftBounds = MagneticFieldLines.createBoundsTexture(MagneticFieldLines.OPEN_LINE_RESOLUTION, magneticConnections.openConnections.length);
-    this.openRightBounds = MagneticFieldLines.createBoundsTexture(MagneticFieldLines.OPEN_LINE_RESOLUTION, magneticConnections.openConnections.length);
+    const openBoundsLength = MagneticFieldLines.OPEN_LINE_RESOLUTION * this.openCount;
+    this.openLeftBounds = new StorageBufferAttribute(openBoundsLength, MagneticFieldLines.LINE_POINT_LENGTH);
+    this.openRightBounds = new StorageBufferAttribute(openBoundsLength, MagneticFieldLines.LINE_POINT_LENGTH);
     this.computeOpen = Fn(() => {
       const connectionsBuffer = storage(magneticConnections.openConnectionsBuffer, 'vec3');
       const point = connectionsBuffer.element(instanceIndex).toVar();
 
       const rotationAxis = vec3(instanceIndex.mod(5).sub(2), instanceIndex.mod(7).sub(4), instanceIndex.mod(9).sub(4)).normalize().toVar();
 
-      const leftPointLow = HelperFunctions.rotate(point, rotationAxis, MagneticFieldLines.OPEN_LINE_ANGLE).toVar();
-      const rightPointLow = HelperFunctions.rotate(point, rotationAxis, -MagneticFieldLines.OPEN_LINE_ANGLE).toVar();
-      const leftPointHigh = leftPointLow.normalize().mul(MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS).toVar();
-      const rightPointHigh = rightPointLow.normalize().mul(MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS).toVar();
+      const leftPointLow = HelperFunctions.rotate(point, rotationAxis, MagneticFieldLines.OPEN_LOW_ANGLE).toVar();
+      const rightPointLow = HelperFunctions.rotate(point, rotationAxis, -MagneticFieldLines.OPEN_LOW_ANGLE).toVar();
 
+      rotationAxis.assign(rightPointLow.sub(leftPointLow).normalize());
+      const leftPointHigh = HelperFunctions.rotate(
+        leftPointLow.normalize().mul(MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS),
+        rotationAxis,
+        MagneticFieldLines.OPEN_HIGH_ANGLE)
+        .toVar();
+      const rightPointHigh = HelperFunctions.rotate(
+        rightPointLow.normalize().mul(MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS),
+        rotationAxis,
+        -MagneticFieldLines.OPEN_HIGH_ANGLE)
+        .toVar();
+
+      const pointIndex = instanceIndex.mul(MagneticFieldLines.OPEN_LINE_RESOLUTION).toVar();
       Loop(
-        MagneticFieldLines.OPEN_LINE_RESOLUTION + 1,
+        MagneticFieldLines.OPEN_LINE_RESOLUTION,
         ({ i }) => {
           const progress = float(i).mul(MagneticFieldLines.OPEN_LINE_RESOLUTION_RECIPROCAL).toVar();
           const rightPoint = mix(rightPointLow, rightPointHigh, progress);
           const leftPoint = mix(leftPointLow, leftPointHigh, progress);
           const leftStiffness = leftPoint.lengthSq().smoothstep(MagneticFieldLines.CLOSED_HIGH_ALTITUDE_STIFFNESS, MagneticFieldLines.CLOSED_LOW_ALTITUDE_STIFFNESS);
           const rightStiffness = rightPoint.lengthSq().smoothstep(MagneticFieldLines.CLOSED_HIGH_ALTITUDE_STIFFNESS, MagneticFieldLines.CLOSED_LOW_ALTITUDE_STIFFNESS);
-          const uv = vec2(i, instanceIndex).toVar();
-          textureStore(this.openLeftBounds, uv, vec4(leftPoint, leftStiffness));
-          textureStore(this.openRightBounds, uv, vec4(rightPoint, rightStiffness));
+          storage(this.openLeftBounds, 'vec4').element(pointIndex).assign(vec4(leftPoint, leftStiffness));
+          storage(this.openRightBounds, 'vec4').element(pointIndex).assign(vec4(rightPoint, rightStiffness));
+          pointIndex.addAssign(1);
         }
       );
     });
@@ -143,8 +157,9 @@ export class MagneticFieldLines {
         thirdPointRight.addAssign(stretchAxis.negate());
       }
 
+      const pointIndex = lineId.mul(MagneticFieldLines.CLOSED_LINE_RESOLUTION).toVar();
       Loop(
-        MagneticFieldLines.CLOSED_LINE_RESOLUTION + 1,
+        MagneticFieldLines.CLOSED_LINE_RESOLUTION,
         ({ i }) => {
           const progress = float(i).mul(MagneticFieldLines.CLOSED_LINE_RESOLUTION_RECIPROCAL).toVar();
           const leftPoint = HelperFunctions.qubicBezier(
@@ -163,23 +178,11 @@ export class MagneticFieldLines {
           );
           const leftStiffness = leftPoint.lengthSq().smoothstep(MagneticFieldLines.CLOSED_HIGH_ALTITUDE_STIFFNESS, MagneticFieldLines.CLOSED_LOW_ALTITUDE_STIFFNESS);
           const rightStiffness = rightPoint.lengthSq().smoothstep(MagneticFieldLines.CLOSED_HIGH_ALTITUDE_STIFFNESS, MagneticFieldLines.CLOSED_LOW_ALTITUDE_STIFFNESS);
-          const uv = vec2(i, lineId).toVar();
-          textureStore(this.closedLeftBounds, uv, vec4(leftPoint, leftStiffness));
-          textureStore(this.closedRightBounds, uv, vec4(rightPoint, rightStiffness));
+          storage(this.closedLeftBounds, 'vec4').element(pointIndex).assign(vec4(leftPoint, leftStiffness));
+          storage(this.closedRightBounds, 'vec4').element(pointIndex).assign(vec4(rightPoint, rightStiffness));
+          pointIndex.addAssign(1);
         }
       );
     });
-  }
-
-  private static createBoundsTexture(width: number, height: number): Texture {
-    const texture = new StorageTexture(width, height);
-    texture.format = RGBAFormat;
-    texture.type = FloatType;
-    texture.wrapS = ClampToEdgeWrapping;
-    texture.wrapT = ClampToEdgeWrapping;
-    texture.magFilter = LinearFilter;
-    texture.minFilter = LinearFilter;
-    texture.needsUpdate = true;
-    return texture;
   }
 }

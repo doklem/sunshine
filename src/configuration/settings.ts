@@ -33,8 +33,8 @@ export class Settings {
       'AIA 304 A': Instrument.AIA_304_A
     };
     if (debugMode) {
-      instruments['Debug Empty'] = Instrument.DEBUG_EMPTY;
-      this.instrument = Instrument.HMI_INTENSITYGRAM_COLORED;
+      instruments['Debug Empty'] = Instrument.DEBUG;
+      this.instrument = Instrument.HMI_INTENSITYGRAM;
     } else {
       this.instrument = Instrument.AIA_304_A;
     }

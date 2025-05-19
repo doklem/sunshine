@@ -76,9 +76,10 @@ export class World implements Configurable {
 
     let sceneElement: Configurable & Object3D = new Surface(
       noiseHelper.createVoronoiTexture3D(64, 1),
-      noiseHelper.createWhiteNoiseTexture3D(32),
+      noiseHelper.createSimplexTexture2D(256, 256, 0.25, 1, 0.01, 3, 2),
       this.magneticConnections.sunspotsTexture,
-      await loader.loadAsync('hmi-intensitygram-colored.png')
+      await loader.loadAsync('hmi-intensitygram-colored.png'),
+      await loader.loadAsync('aia-304-a-surface.png')
     );
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);

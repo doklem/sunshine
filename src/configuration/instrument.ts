@@ -2,5 +2,5 @@ export enum Instrument {
   HMI_INTENSITYGRAM,
   HMI_INTENSITYGRAM_COLORED,
   AIA_304_A,
-  DEBUG_EMPTY
+  DEBUG
 }

@@ -246,19 +246,6 @@ export class NoiseTextureHelper {
     return NoiseTextureHelper.configureTexture(new Data3DTexture(data, size, size, size), 1);
   }
 
-  public createWhiteNoiseTexture3D(size: number): Data3DTexture {
-    const texture = new Data3DTexture(NoiseTextureHelper.createValues(size), size, size, size);
-    texture.format = RGBAFormat;
-    texture.type = FloatType;
-    texture.minFilter = LinearFilter;
-    texture.magFilter = LinearFilter;
-    texture.wrapS = RepeatWrapping;
-    texture.wrapT = RepeatWrapping;
-    texture.wrapR = RepeatWrapping;
-    texture.needsUpdate = true;
-    return texture;
-  }
-
   private noise3dWithOctaves(x: number, y: number, w: number, frequency: number, amplitude: number, octaves: number): number {
     let value = 0;
     for (let i = 0; i < octaves; i++) {
@@ -303,18 +290,6 @@ export class NoiseTextureHelper {
       }
     }
     return points;
-  }
-
-  private static createValues(size: number): Float32Array {
-    const size3d = size * size * size * 4;
-    const values: number[] = [];
-    for (let offset = 0; offset < size3d; offset += 4) {
-      values.push((Math.random() - 0.5) * 0.05);
-      values.push((Math.random() - 0.5) * 0.05);
-      values.push((Math.random() - 0.5) * 0.05);
-      values.push(Math.random() * 10);
-    }
-    return new Float32Array(values);
   }
 
   private static configureTexture<TTexture extends DataTexture | Data3DTexture>(texture: TTexture, components: number): TTexture {

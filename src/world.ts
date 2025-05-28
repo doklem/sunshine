@@ -1,12 +1,12 @@
 import Stats from 'stats-gl';
-import { Object3D, PerspectiveCamera, Scene, TextureLoader } from 'three';
+import { Object3D, PerspectiveCamera, Scene } from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { PostProcessing, WebGPURenderer } from 'three/webgpu';
 import { Surface } from './meshes/surface';
 import { pass } from 'three/tsl';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { Settings } from './configuration/settings';
-import { NoiseTextureHelper } from './noise-texture-helper';
+import { NoiseTextureHelper } from './textures/noise-texture-helper';
 import { MagneticFieldLines } from './simulation/magnetic-field-lines';
 import { MagneticPoles } from './simulation/magnetic-poles';
 import { MagneticConnections } from './simulation/magnetic-connections';
@@ -16,6 +16,7 @@ import { DebugMeshes } from './debugging/debug-meshes';
 import { Configurable } from './configuration/configurable';
 import { OpenFlares } from './meshes/open-flares';
 import { ClosedFlares } from './meshes/closed-flares';
+import { loadGradientTexturesAsync } from './textures/gradient-textures';
 
 export class World implements Configurable {
 
@@ -66,7 +67,7 @@ export class World implements Configurable {
   }
 
   public async startAsync(): Promise<void> {
-    const loader = new TextureLoader();
+    const gradientTextures = await loadGradientTexturesAsync();
     const noiseHelper = new NoiseTextureHelper();
 
     await this.magneticConnections.updateAsync(this.renderer);
@@ -76,10 +77,10 @@ export class World implements Configurable {
 
     let sceneElement: Configurable & Object3D = new Surface(
       noiseHelper.createVoronoiTexture3D(64, 1),
-      noiseHelper.createSimplexTexture2D(256, 256, 0.25, 1, 0.01, 3, 2),
-      this.magneticConnections.sunspotsTexture,
-      await loader.loadAsync('hmi-intensitygram-colored.png'),
-      await loader.loadAsync('aia-304-a-surface.png')
+      noiseHelper.createSimplexTexture3D(256, 0.25, 1, 0.01, 3, 2),
+      this.magneticConnections.convectionFlowAndSunspotsTexture,
+      gradientTextures.intensitygramColored.surface,
+      gradientTextures.aia304a.surface
     );
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
@@ -88,10 +89,10 @@ export class World implements Configurable {
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
     const flareVertexNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
-    sceneElement = new ClosedFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise, await loader.loadAsync('aia-304-a-closed-flare.png'));
+    sceneElement = new ClosedFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise, gradientTextures.aia304a.closedFlare);
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
-    sceneElement = new OpenFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise, await loader.loadAsync('aia-304-a-open-flare.png'));
+    sceneElement = new OpenFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise, gradientTextures.aia304a.openFlare);
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
 

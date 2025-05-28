@@ -21,7 +21,7 @@ export class Settings {
   public readonly aia304a = {
     closedFlares: true,
     openFlares: true,
-    bloomStrength: 0.5
+    bloomStrength: 1
   };
 
   public constructor(onFinishedChange: () => void, debugMode: boolean) {
@@ -33,8 +33,8 @@ export class Settings {
       'AIA 304 A': Instrument.AIA_304_A
     };
     if (debugMode) {
-      instruments['Debug Empty'] = Instrument.DEBUG;
-      this.instrument = Instrument.HMI_INTENSITYGRAM;
+      instruments['Debug'] = Instrument.DEBUG;
+      this.instrument = Instrument.AIA_304_A;
     } else {
       this.instrument = Instrument.AIA_304_A;
     }

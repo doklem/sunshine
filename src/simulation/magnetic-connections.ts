@@ -11,14 +11,14 @@ export class MagneticConnections {
   private static readonly MIN_OPEN_CONNECTION_DISTANCE = 0.08;
   private static readonly MIN_CLOSED_CONNECTION_DISTANCE = 0.002;
   private static readonly MAX_CLOSED_CONNECTION_DISTANCE = 0.02;
-  private static readonly SUNSPOTS_TEXTURE_SIZE = 2048;
-  private static readonly SUNSPOTS_TEXTURE_SIZE_RECIPROCAL = 1 / MagneticConnections.SUNSPOTS_TEXTURE_SIZE;
+  private static readonly TEXTURE_SIZE = 2048;
+  private static readonly TEXTURE_SIZE_RECIPROCAL = 1 / MagneticConnections.TEXTURE_SIZE;
   private static readonly SUNSPOTS_INTENSITY_START = 0.2765;
   private static readonly SUNSPOTS_INTENSITY_END = MagneticConnections.SUNSPOTS_INTENSITY_START - 0.001;
-  private static readonly SUNSPOTS_FLOW_START = 0.26;
-  private static readonly SUNSPOTS_FLOW_END = MagneticConnections.SUNSPOTS_FLOW_START + 0.02;
-  private static readonly FLOW_STRENGTH = 0.5;
-  private static readonly FLOW_STRENGTH_SUNSPOT = 2;
+  private static readonly CONVECTION_FLOW_START = 0.26;
+  private static readonly CONVECTION_FLOW_END = MagneticConnections.CONVECTION_FLOW_START + 0.02;
+  private static readonly CONVECTION_FLOW_STRENGTH = 0.5;
+  private static readonly CONVECTION_FLOW_STRENGTH_SUNSPOT = 2;
 
   public readonly closedConnections: Vector3[][];
   public readonly closedConnectionsBuffer: StorageBufferAttribute;
@@ -26,17 +26,17 @@ export class MagneticConnections {
   public readonly openConnections: Vector3[];
   public readonly openConnectionsBuffer: StorageBufferAttribute;
 
-  public readonly sunspotsTexture: StorageTexture;
+  public readonly convectionFlowAndSunspotsTexture: StorageTexture;
 
-  private readonly computeSunspots: ShaderNodeFn<[]>;
+  private readonly computeConvectionFlowAndSunspots: ShaderNodeFn<[]>;
 
   public constructor(magneticPoles: MagneticPoles) {
     this.closedConnections = [];
     let distance: number;
     let northPoles = [...magneticPoles.northPoles];
 
-    // Suffle the south poles to get a more random but still deterministic distribution
-    let southPoles = magneticPoles.southPoles
+    // Suffle the south poles to get a more random but still deterministic orientation of flares
+    const southPoles = magneticPoles.southPoles
       .map((value, index) => ({ value, key: MagneticConnections.hash(index) }))
       .sort((valueA, valueB) => valueA.key - valueB.key)
       .map(({ value }) => value);
@@ -76,26 +76,25 @@ export class MagneticConnections {
       MagneticConnections.VECTOR_SIZE
     );
 
-    this.sunspotsTexture = new StorageTexture(MagneticConnections.SUNSPOTS_TEXTURE_SIZE, MagneticConnections.SUNSPOTS_TEXTURE_SIZE);
-    this.sunspotsTexture.format = RGBAFormat;
-    this.sunspotsTexture.type = FloatType;
-    this.sunspotsTexture.unpackAlignment = 1;
-    this.sunspotsTexture.wrapS = ClampToEdgeWrapping;
-    this.sunspotsTexture.wrapT = ClampToEdgeWrapping;
-    this.sunspotsTexture.minFilter = LinearFilter;
-    this.sunspotsTexture.magFilter = LinearFilter;
-    this.sunspotsTexture.needsUpdate = true;
+    this.convectionFlowAndSunspotsTexture = new StorageTexture(MagneticConnections.TEXTURE_SIZE, MagneticConnections.TEXTURE_SIZE);
+    this.convectionFlowAndSunspotsTexture.format = RGBAFormat;
+    this.convectionFlowAndSunspotsTexture.type = FloatType;
+    this.convectionFlowAndSunspotsTexture.wrapS = ClampToEdgeWrapping;
+    this.convectionFlowAndSunspotsTexture.wrapT = ClampToEdgeWrapping;
+    this.convectionFlowAndSunspotsTexture.minFilter = LinearFilter;
+    this.convectionFlowAndSunspotsTexture.magFilter = LinearFilter;
+    this.convectionFlowAndSunspotsTexture.needsUpdate = true;
 
-    this.computeSunspots = Fn(() => {
+    this.computeConvectionFlowAndSunspots = Fn(() => {
       const pixelCoordinates = vec2(
-        instanceIndex.mod(MagneticConnections.SUNSPOTS_TEXTURE_SIZE),
-        instanceIndex.div(MagneticConnections.SUNSPOTS_TEXTURE_SIZE)
+        instanceIndex.mod(MagneticConnections.TEXTURE_SIZE),
+        instanceIndex.div(MagneticConnections.TEXTURE_SIZE)
       ).toVar();
 
       const uv = vec2(
         float(pixelCoordinates.x),
-        float(instanceIndex).mul(MagneticConnections.SUNSPOTS_TEXTURE_SIZE_RECIPROCAL)
-      ).mul(MagneticConnections.SUNSPOTS_TEXTURE_SIZE_RECIPROCAL).toVar();
+        float(instanceIndex).mul(MagneticConnections.TEXTURE_SIZE_RECIPROCAL)
+      ).mul(MagneticConnections.TEXTURE_SIZE_RECIPROCAL).toVar();
 
       const pointOnSphere = HelperFunctions.uvToPointOnSphere(uv).toVar();
 
@@ -117,21 +116,19 @@ export class MagneticConnections {
         MagneticConnections.SUNSPOTS_INTENSITY_END
       );
       const flow = mix(
-        pointOnSphere.mul(MagneticConnections.FLOW_STRENGTH_SUNSPOT),
-        pointOnSphere.mul(MagneticConnections.FLOW_STRENGTH),
-        shortestDistanceSq.smoothstep(MagneticConnections.SUNSPOTS_FLOW_START, MagneticConnections.SUNSPOTS_FLOW_END)
+        pointOnSphere.mul(MagneticConnections.CONVECTION_FLOW_STRENGTH_SUNSPOT),
+        pointOnSphere.mul(MagneticConnections.CONVECTION_FLOW_STRENGTH),
+        shortestDistanceSq.smoothstep(MagneticConnections.CONVECTION_FLOW_START, MagneticConnections.CONVECTION_FLOW_END)
       );
 
-      textureStore(
-        this.sunspotsTexture,
-        pixelCoordinates,
-        vec4(flow, intensity)
-      );
+      textureStore(this.convectionFlowAndSunspotsTexture, pixelCoordinates, vec4(flow, intensity));
     });
   }
 
   public async updateAsync(renderer: WebGPURenderer): Promise<void> {
-    await renderer.computeAsync(this.computeSunspots().compute(MagneticConnections.SUNSPOTS_TEXTURE_SIZE * MagneticConnections.SUNSPOTS_TEXTURE_SIZE));
+    await renderer.computeAsync(
+      this.computeConvectionFlowAndSunspots().compute(MagneticConnections.TEXTURE_SIZE * MagneticConnections.TEXTURE_SIZE)
+    );
   }
 
   private static validOpenConnection(pole: Vector3, closedConnections: Vector3[][]): boolean {

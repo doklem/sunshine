@@ -1,10 +1,11 @@
-import { BufferGeometry, ClampToEdgeWrapping, Data3DTexture, IcosahedronGeometry, LinearFilter, Mesh, RGBAFormat, Texture } from 'three';
-import { ShaderNodeFn } from 'three/src/nodes/TSL.js';
-import { abs, cameraPosition, Fn, fract, mix, normalLocal, normalWorld, texture, texture3D, time, uv, vec2, vec4 } from 'three/tsl';
-import { NodeMaterial } from 'three/webgpu';
+import { BufferGeometry, Data3DTexture, IcosahedronGeometry, Mesh, Texture } from 'three';
+import { ShaderNodeFn, ShaderNodeObject } from 'three/src/nodes/TSL.js';
+import { abs, cameraPosition, Fn, fract, mix, normalLocal, normalWorld, texture, texture3D, time, uv, vec2, vec3, vec4 } from 'three/tsl';
+import { Node, NodeMaterial } from 'three/webgpu';
 import { Settings } from '../configuration/settings';
 import { Instrument } from '../configuration/instrument';
 import { Configurable } from '../configuration/configurable';
+import MathNode from 'three/src/nodes/math/MathNode.js';
 
 export class Surface extends Mesh<BufferGeometry, NodeMaterial> implements Configurable {
 
@@ -21,51 +22,36 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> implements Confi
 
   public constructor(
     voronoiTexture: Data3DTexture,
-    simplexNoiseTexture: Texture,
-    sunspotTexture: Texture,
+    simplexNoiseTexture: Data3DTexture,
+    convectionFlowAndSunspotTexture: Texture,
     intensitygramGradient: Texture,
     aia304aGradient: Texture) {
     super(new IcosahedronGeometry(Surface.GEOMETRY_RADIUS, Surface.GEOMETRY_DETAILS), new NodeMaterial());
 
-    const sunspotAndFlow = texture(
-      sunspotTexture,
-      uv().add(texture(simplexNoiseTexture, uv()).xy.mul(0.3))
+    const convectionFlowAndSunspot = texture(
+      convectionFlowAndSunspotTexture,
+      uv().add(texture3D(simplexNoiseTexture, vec3(uv(), 0)).xy.mul(0.3))
     ).toVar();
-    const sunspot = sunspotAndFlow.a;
-
-    const flowDirection = sunspotAndFlow.xyz;
-    const phase0Time = fract(time.mul(Surface.CONVECTION_SPEED)).toVar();
-    const phase1Time = fract(phase0Time.add(0.5));
-    const flowMix = abs(phase0Time.sub(0.5).mul(2));
-
-    const intensity0 = texture3D(
-      voronoiTexture,
-      normalLocal.add(flowDirection.mul(phase0Time)).mul(Surface.CONVECTION_ZOOM)
-    ).x;
-    const intensity1 = texture3D(
-      voronoiTexture,
-      normalLocal.add(flowDirection.mul(phase1Time)).mul(Surface.CONVECTION_ZOOM)
-    ).x;
-    const intensityConvection = mix(intensity0, intensity1, flowMix);
-
+    const sunspot = convectionFlowAndSunspot.a;
+    const convection = Surface.createFlowNode(convectionFlowAndSunspot.xyz, Surface.CONVECTION_SPEED, Surface.CONVECTION_ZOOM, voronoiTexture);
     const halo = cameraPosition.normalize().dot(normalWorld).mul(Math.PI).sin().smoothstep(1, 0);
 
     this.renderHMIItensitygram = Fn(() => {
-      const intensity = intensityConvection.mul(halo.mul(0.25)).sub(sunspot);
+      const intensity = convection.mul(halo.mul(0.25)).sub(sunspot);
       return vec4(intensity, intensity, intensity, 1);
     });
 
     this.renderHMIItensitygramColored = Fn(() => {
-      const intensity = intensityConvection.mul(halo.mul(0.75).add(0.25)).sub(sunspot);
-      return texture(Surface.configureToGradient(intensitygramGradient), vec2(intensity, 0.5));
+      const intensity = convection.mul(halo.mul(0.75).add(0.25)).sub(sunspot);
+      return texture(intensitygramGradient, vec2(intensity, 0.5));
     });
 
     this.renderAIA304A = Fn(() => {
-      return texture(Surface.configureToGradient(aia304aGradient), vec2(sunspot, 0.5));
+      return texture(aia304aGradient, vec2(sunspot, 0.5));
     });
 
     this.renderDebug = Fn(() => {
-      return vec4(flowDirection, 1);
+      return vec4(convection, convection, convection, 1);
     });
 
     this.material.outputNode = this.renderAIA304A();
@@ -90,14 +76,21 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> implements Confi
     this.material.needsUpdate = true;
   }
 
-  private static configureToGradient(texture: Texture): Texture {
-    texture.format = RGBAFormat;
-    texture.minFilter = LinearFilter;
-    texture.magFilter = LinearFilter;
-    texture.wrapS = ClampToEdgeWrapping;
-    texture.wrapT = ClampToEdgeWrapping;
-    texture.generateMipmaps = true;
-    texture.needsUpdate = true;
-    return texture;
+  private static createFlowNode(
+    flowDirection: ShaderNodeObject<Node>,
+    speed: number,
+    zoom: number,
+    texture: Data3DTexture): ShaderNodeObject<MathNode> {
+    const time0 = fract(time.mul(speed)).toVar();
+    const time1 = fract(time0.add(0.5));
+    const value0 = texture3D(
+      texture,
+      normalLocal.add(flowDirection.mul(time0)).mul(zoom)
+    ).x;
+    const value1 = texture3D(
+      texture,
+      normalLocal.add(flowDirection.mul(time1)).mul(zoom)
+    ).x;
+    return mix(value0, value1, abs(time0.sub(0.5).mul(2)));
   }
 }

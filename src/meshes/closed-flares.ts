@@ -7,13 +7,13 @@ import { ShaderNodeObject } from 'three/tsl';
 import { Node, VarNode } from 'three/webgpu';
 
 export class ClosedFlares extends FlaresBase {
-
   public constructor(
     magneticFieldLines: MagneticFieldLines,
     vertexNoise: Texture,
     fragmentNoise: Texture,
     colorGradient: Texture,
-    time: ShaderNodeObject<Node>) {
+    time: ShaderNodeObject<Node>,
+  ) {
     super(
       magneticFieldLines.closedCount,
       new Vector2(MagneticFieldLines.CLOSED_LINE_RESOLUTION, 10),
@@ -23,15 +23,22 @@ export class ClosedFlares extends FlaresBase {
       fragmentNoise,
       new Vector2(0.01, 0.37),
       colorGradient,
-      time
+      time,
     );
   }
 
   public override applySettings(settings: Settings): void {
-    this.visible = settings.instrument === Instrument.AIA_304_A && settings.aia304a.closedFlares;
+    this.visible =
+      settings.instrument === Instrument.AIA_304_A &&
+      settings.aia304a.closedFlares;
   }
 
-  protected override createHightMask(heightSq: ShaderNodeObject<VarNode>): ShaderNodeObject<Node> {
-    return heightSq.smoothstep(FlaresBase.SURFACE_RADIUS_SQUARED * 1.7, FlaresBase.SURFACE_RADIUS_SQUARED * 1.3);
+  protected override createHightMask(
+    heightSq: ShaderNodeObject<VarNode>,
+  ): ShaderNodeObject<Node> {
+    return heightSq.smoothstep(
+      FlaresBase.SURFACE_RADIUS_SQUARED * 1.7,
+      FlaresBase.SURFACE_RADIUS_SQUARED * 1.3,
+    );
   }
 }

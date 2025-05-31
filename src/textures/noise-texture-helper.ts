@@ -1,8 +1,18 @@
-import { Data3DTexture, DataTexture, FloatType, LinearFilter, MathUtils, RedFormat, RepeatWrapping, RGBAFormat, RGFormat, Vector3 } from 'three';
+import {
+  Data3DTexture,
+  DataTexture,
+  FloatType,
+  LinearFilter,
+  MathUtils,
+  RedFormat,
+  RepeatWrapping,
+  RGBAFormat,
+  RGFormat,
+  Vector3,
+} from 'three';
 import { SimplexNoise } from 'three/examples/jsm/Addons.js';
 
 export class NoiseTextureHelper {
-
   private readonly noise = new SimplexNoise();
 
   public createSimplexTexture2D(
@@ -13,7 +23,8 @@ export class NoiseTextureHelper {
     amplitude: number,
     octaves: number,
     components: number,
-    adapt?: (value: number, component: number) => number): DataTexture {
+    adapt?: (value: number, component: number) => number,
+  ): DataTexture {
     const widthSeamSize = Math.round(width * seam);
     const widthSeamSizeReciprocal = 1 / widthSeamSize;
     const heightSeamSize = Math.round(height * seam);
@@ -26,41 +37,79 @@ export class NoiseTextureHelper {
       for (let x = 0; x < width; x++) {
         for (let w = 0; w < components; w++) {
           if (x < widthSeamSize && heightSeamSize <= y) {
-
             // Linear interpolation
             value = MathUtils.lerp(
-              this.noise3dWithOctaves(x + width, y, w, frequency, amplitude, octaves),
+              this.noise3dWithOctaves(
+                x + width,
+                y,
+                w,
+                frequency,
+                amplitude,
+                octaves,
+              ),
               this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves),
-              x * widthSeamSizeReciprocal
+              x * widthSeamSizeReciprocal,
             );
           } else if (widthSeamSize <= x && y < heightSeamSize) {
-
             // Linear interpolation
             value = MathUtils.lerp(
-              this.noise3dWithOctaves(x, y + width, w, frequency, amplitude, octaves),
+              this.noise3dWithOctaves(
+                x,
+                y + width,
+                w,
+                frequency,
+                amplitude,
+                octaves,
+              ),
               this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves),
-              y * heightSeamSizeReciprocal
+              y * heightSeamSizeReciprocal,
             );
           } else if (x < widthSeamSize && y < heightSeamSize) {
-
             // Bilinear interpolation
             value = MathUtils.lerp(
               MathUtils.lerp(
-                this.noise3dWithOctaves(x + width, y + width, w, frequency, amplitude, octaves),
-                this.noise3dWithOctaves(x + width, y, w, frequency, amplitude, octaves),
-                y * heightSeamSizeReciprocal
+                this.noise3dWithOctaves(
+                  x + width,
+                  y + width,
+                  w,
+                  frequency,
+                  amplitude,
+                  octaves,
+                ),
+                this.noise3dWithOctaves(
+                  x + width,
+                  y,
+                  w,
+                  frequency,
+                  amplitude,
+                  octaves,
+                ),
+                y * heightSeamSizeReciprocal,
               ),
               MathUtils.lerp(
-                this.noise3dWithOctaves(x, y + width, w, frequency, amplitude, octaves),
+                this.noise3dWithOctaves(
+                  x,
+                  y + width,
+                  w,
+                  frequency,
+                  amplitude,
+                  octaves,
+                ),
                 this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves),
-                y * heightSeamSizeReciprocal
+                y * heightSeamSizeReciprocal,
               ),
-              x * widthSeamSizeReciprocal
+              x * widthSeamSizeReciprocal,
             );
           } else {
-
             // No interpolation
-            value = this.noise3dWithOctaves(x, y, w, frequency, amplitude, octaves);
+            value = this.noise3dWithOctaves(
+              x,
+              y,
+              w,
+              frequency,
+              amplitude,
+              octaves,
+            );
           }
 
           data[offset] = adapt ? adapt(value, w) : value;
@@ -69,7 +118,10 @@ export class NoiseTextureHelper {
       }
     }
 
-    return NoiseTextureHelper.configureTexture(new DataTexture(data, width, height), components);
+    return NoiseTextureHelper.configureTexture(
+      new DataTexture(data, width, height),
+      components,
+    );
   }
 
   public createSimplexTexture3D(
@@ -78,7 +130,8 @@ export class NoiseTextureHelper {
     frequency: number,
     amplitude: number,
     octaves: number,
-    components: number): Data3DTexture {
+    components: number,
+  ): Data3DTexture {
     const seamSize = Math.round(size * seam);
     const seamSizeReciprocal = 1 / seamSize;
     const data = new Float32Array(size * size * size * components);
@@ -89,113 +142,321 @@ export class NoiseTextureHelper {
         for (let x = 0; x < size; x++) {
           for (let w = 0; w < components; w++) {
             if (x < seamSize && seamSize <= y && seamSize <= z) {
-
               // Linear interpolation
               data[offset] = MathUtils.lerp(
-                this.noise4dWithOctaves(x + size, y, z, w, frequency, amplitude, octaves),
-                this.noise4dWithOctaves(x, y, z, w, frequency, amplitude, octaves),
-                x * seamSizeReciprocal
+                this.noise4dWithOctaves(
+                  x + size,
+                  y,
+                  z,
+                  w,
+                  frequency,
+                  amplitude,
+                  octaves,
+                ),
+                this.noise4dWithOctaves(
+                  x,
+                  y,
+                  z,
+                  w,
+                  frequency,
+                  amplitude,
+                  octaves,
+                ),
+                x * seamSizeReciprocal,
               );
             } else if (seamSize <= x && y < seamSize && seamSize <= z) {
-
               // Linear interpolation
               data[offset] = MathUtils.lerp(
-                this.noise4dWithOctaves(x, y + size, z, w, frequency, amplitude, octaves),
-                this.noise4dWithOctaves(x, y, z, w, frequency, amplitude, octaves),
-                y * seamSizeReciprocal
+                this.noise4dWithOctaves(
+                  x,
+                  y + size,
+                  z,
+                  w,
+                  frequency,
+                  amplitude,
+                  octaves,
+                ),
+                this.noise4dWithOctaves(
+                  x,
+                  y,
+                  z,
+                  w,
+                  frequency,
+                  amplitude,
+                  octaves,
+                ),
+                y * seamSizeReciprocal,
               );
             } else if (seamSize <= x && seamSize <= y && z < seamSize) {
-
               // Linear interpolation
               data[offset] = MathUtils.lerp(
-                this.noise4dWithOctaves(x, y, z + size, w, frequency, amplitude, octaves),
-                this.noise4dWithOctaves(x, y, z, w, frequency, amplitude, octaves),
-                z * seamSizeReciprocal
+                this.noise4dWithOctaves(
+                  x,
+                  y,
+                  z + size,
+                  w,
+                  frequency,
+                  amplitude,
+                  octaves,
+                ),
+                this.noise4dWithOctaves(
+                  x,
+                  y,
+                  z,
+                  w,
+                  frequency,
+                  amplitude,
+                  octaves,
+                ),
+                z * seamSizeReciprocal,
               );
             } else if (x < seamSize && y < seamSize && seamSize <= z) {
-
               // Bilinear interpolation
               data[offset] = MathUtils.lerp(
                 MathUtils.lerp(
-                  this.noise4dWithOctaves(x + size, y + size, z, w, frequency, amplitude, octaves),
-                  this.noise4dWithOctaves(x + size, y, z, w, frequency, amplitude, octaves),
-                  y * seamSizeReciprocal
+                  this.noise4dWithOctaves(
+                    x + size,
+                    y + size,
+                    z,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  this.noise4dWithOctaves(
+                    x + size,
+                    y,
+                    z,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  y * seamSizeReciprocal,
                 ),
                 MathUtils.lerp(
-                  this.noise4dWithOctaves(x, y + size, z, w, frequency, amplitude, octaves),
-                  this.noise4dWithOctaves(x, y, z, w, frequency, amplitude, octaves),
-                  y * seamSizeReciprocal
+                  this.noise4dWithOctaves(
+                    x,
+                    y + size,
+                    z,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  this.noise4dWithOctaves(
+                    x,
+                    y,
+                    z,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  y * seamSizeReciprocal,
                 ),
-                x * seamSizeReciprocal
+                x * seamSizeReciprocal,
               );
             } else if (x < seamSize && seamSize <= y && z < seamSize) {
-
               // Bilinear interpolation
               data[offset] = MathUtils.lerp(
                 MathUtils.lerp(
-                  this.noise4dWithOctaves(x + size, y, z + size, w, frequency, amplitude, octaves),
-                  this.noise4dWithOctaves(x + size, y, z, w, frequency, amplitude, octaves),
-                  z * seamSizeReciprocal
+                  this.noise4dWithOctaves(
+                    x + size,
+                    y,
+                    z + size,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  this.noise4dWithOctaves(
+                    x + size,
+                    y,
+                    z,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  z * seamSizeReciprocal,
                 ),
                 MathUtils.lerp(
-                  this.noise4dWithOctaves(x, y, z + size, w, frequency, amplitude, octaves),
-                  this.noise4dWithOctaves(x, y, z, w, frequency, amplitude, octaves),
-                  z * seamSizeReciprocal
+                  this.noise4dWithOctaves(
+                    x,
+                    y,
+                    z + size,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  this.noise4dWithOctaves(
+                    x,
+                    y,
+                    z,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  z * seamSizeReciprocal,
                 ),
-                x * seamSizeReciprocal
+                x * seamSizeReciprocal,
               );
             } else if (seamSize <= x && y < seamSize && z < seamSize) {
-
               // Bilinear interpolation
               data[offset] = MathUtils.lerp(
                 MathUtils.lerp(
-                  this.noise4dWithOctaves(x, y + size, z + size, w, frequency, amplitude, octaves),
-                  this.noise4dWithOctaves(x, y + size, z, w, frequency, amplitude, octaves),
-                  z * seamSizeReciprocal
+                  this.noise4dWithOctaves(
+                    x,
+                    y + size,
+                    z + size,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  this.noise4dWithOctaves(
+                    x,
+                    y + size,
+                    z,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  z * seamSizeReciprocal,
                 ),
                 MathUtils.lerp(
-                  this.noise4dWithOctaves(x, y, z + size, w, frequency, amplitude, octaves),
-                  this.noise4dWithOctaves(x, y, z, w, frequency, amplitude, octaves),
-                  z * seamSizeReciprocal
+                  this.noise4dWithOctaves(
+                    x,
+                    y,
+                    z + size,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  this.noise4dWithOctaves(
+                    x,
+                    y,
+                    z,
+                    w,
+                    frequency,
+                    amplitude,
+                    octaves,
+                  ),
+                  z * seamSizeReciprocal,
                 ),
-                y * seamSizeReciprocal
+                y * seamSizeReciprocal,
               );
             } else if (x < seamSize && y < seamSize && z < seamSize) {
-
               // Trilinear interpolation
               data[offset] = MathUtils.lerp(
                 MathUtils.lerp(
                   MathUtils.lerp(
-                    this.noise4dWithOctaves(x + size, y + size, z + size, w, frequency, amplitude, octaves),
-                    this.noise4dWithOctaves(x + size, y + size, z, w, frequency, amplitude, octaves),
-                    z * seamSizeReciprocal
+                    this.noise4dWithOctaves(
+                      x + size,
+                      y + size,
+                      z + size,
+                      w,
+                      frequency,
+                      amplitude,
+                      octaves,
+                    ),
+                    this.noise4dWithOctaves(
+                      x + size,
+                      y + size,
+                      z,
+                      w,
+                      frequency,
+                      amplitude,
+                      octaves,
+                    ),
+                    z * seamSizeReciprocal,
                   ),
                   MathUtils.lerp(
-                    this.noise4dWithOctaves(x + size, y, z + size, w, frequency, amplitude, octaves),
-                    this.noise4dWithOctaves(x + size, y, z, w, frequency, amplitude, octaves),
-                    z * seamSizeReciprocal
+                    this.noise4dWithOctaves(
+                      x + size,
+                      y,
+                      z + size,
+                      w,
+                      frequency,
+                      amplitude,
+                      octaves,
+                    ),
+                    this.noise4dWithOctaves(
+                      x + size,
+                      y,
+                      z,
+                      w,
+                      frequency,
+                      amplitude,
+                      octaves,
+                    ),
+                    z * seamSizeReciprocal,
                   ),
-                  y * seamSizeReciprocal
+                  y * seamSizeReciprocal,
                 ),
                 MathUtils.lerp(
                   MathUtils.lerp(
-                    this.noise4dWithOctaves(x, y + size, z + size, w, frequency, amplitude, octaves),
-                    this.noise4dWithOctaves(x, y + size, z, w, frequency, amplitude, octaves),
-                    z * seamSizeReciprocal
+                    this.noise4dWithOctaves(
+                      x,
+                      y + size,
+                      z + size,
+                      w,
+                      frequency,
+                      amplitude,
+                      octaves,
+                    ),
+                    this.noise4dWithOctaves(
+                      x,
+                      y + size,
+                      z,
+                      w,
+                      frequency,
+                      amplitude,
+                      octaves,
+                    ),
+                    z * seamSizeReciprocal,
                   ),
                   MathUtils.lerp(
-                    this.noise4dWithOctaves(x, y, z + size, w, frequency, amplitude, octaves),
-                    this.noise4dWithOctaves(x, y, z, w, frequency, amplitude, octaves),
-                    z * seamSizeReciprocal
+                    this.noise4dWithOctaves(
+                      x,
+                      y,
+                      z + size,
+                      w,
+                      frequency,
+                      amplitude,
+                      octaves,
+                    ),
+                    this.noise4dWithOctaves(
+                      x,
+                      y,
+                      z,
+                      w,
+                      frequency,
+                      amplitude,
+                      octaves,
+                    ),
+                    z * seamSizeReciprocal,
                   ),
-                  y * seamSizeReciprocal
+                  y * seamSizeReciprocal,
                 ),
-                x * seamSizeReciprocal
+                x * seamSizeReciprocal,
               );
             } else {
-
               // No interpolation
-              data[offset] = this.noise4dWithOctaves(x, y, z, w, frequency, amplitude, octaves);
+              data[offset] = this.noise4dWithOctaves(
+                x,
+                y,
+                z,
+                w,
+                frequency,
+                amplitude,
+                octaves,
+              );
             }
 
             offset++;
@@ -204,10 +465,16 @@ export class NoiseTextureHelper {
       }
     }
 
-    return NoiseTextureHelper.configureTexture(new Data3DTexture(data, size, size, size), components);
+    return NoiseTextureHelper.configureTexture(
+      new Data3DTexture(data, size, size, size),
+      components,
+    );
   }
 
-  public createVoronoiTexture3D(size: number, volumeSize: number): Data3DTexture {
+  public createVoronoiTexture3D(
+    size: number,
+    volumeSize: number,
+  ): Data3DTexture {
     const sizeReciprocal = volumeSize / size;
 
     const points = NoiseTextureHelper.createPoints(volumeSize);
@@ -243,10 +510,20 @@ export class NoiseTextureHelper {
       }
     }
 
-    return NoiseTextureHelper.configureTexture(new Data3DTexture(data, size, size, size), 1);
+    return NoiseTextureHelper.configureTexture(
+      new Data3DTexture(data, size, size, size),
+      1,
+    );
   }
 
-  private noise3dWithOctaves(x: number, y: number, w: number, frequency: number, amplitude: number, octaves: number): number {
+  private noise3dWithOctaves(
+    x: number,
+    y: number,
+    w: number,
+    frequency: number,
+    amplitude: number,
+    octaves: number,
+  ): number {
     let value = 0;
     for (let i = 0; i < octaves; i++) {
       value += this.noise.noise3d(x * frequency, y * frequency, w) * amplitude;
@@ -256,16 +533,26 @@ export class NoiseTextureHelper {
     return value;
   }
 
-  private noise4dWithOctaves(x: number, y: number, z: number, w: number, frequency: number, amplitude: number, octaves: number): number {
+  private noise4dWithOctaves(
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    frequency: number,
+    amplitude: number,
+    octaves: number,
+  ): number {
     let value = 0;
     for (let i = 0; i < octaves; i++) {
-      value += this.noise.noise4d(x * frequency, y * frequency, z * frequency, w) * amplitude;
+      value +=
+        this.noise.noise4d(x * frequency, y * frequency, z * frequency, w) *
+        amplitude;
       frequency *= 2;
       amplitude *= 0.5;
     }
     return value;
   }
-  
+
   private static createPoints(volumeeSize: number): Vector3[] {
     const points: Vector3[] = [];
     const step = volumeeSize * 0.1;
@@ -292,7 +579,10 @@ export class NoiseTextureHelper {
     return points;
   }
 
-  private static configureTexture<TTexture extends DataTexture | Data3DTexture>(texture: TTexture, components: number): TTexture {
+  private static configureTexture<TTexture extends DataTexture | Data3DTexture>(
+    texture: TTexture,
+    components: number,
+  ): TTexture {
     switch (components) {
       case 1:
         texture.format = RedFormat;
@@ -306,7 +596,9 @@ export class NoiseTextureHelper {
         texture.format = RGBAFormat;
         break;
       default:
-        throw new Error('Invalid number of color channels. Only 1, 2 or 4 are supported.');
+        throw new Error(
+          'Invalid number of color channels. Only 1, 2 or 4 are supported.',
+        );
     }
     texture.type = FloatType;
     texture.minFilter = LinearFilter;

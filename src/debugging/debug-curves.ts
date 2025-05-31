@@ -4,18 +4,18 @@ import { Settings } from '../configuration/settings';
 import { Fn, positionLocal, storage } from 'three/tsl';
 import { Configurable } from '../configuration/configurable';
 
-export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> implements Configurable {
-
+export class DebugCurves
+  extends LineSegments<BufferGeometry, NodeMaterial>
+  implements Configurable
+{
   public constructor(
     points: StorageBufferAttribute,
     count: number,
     colorNode: Node,
     private visibility: (settings: Settings) => boolean,
-    resolution: number) {
-    super(
-      DebugCurves.createGeometry(count, resolution),
-      new NodeMaterial()
-    );
+    resolution: number,
+  ) {
+    super(DebugCurves.createGeometry(count, resolution), new NodeMaterial());
 
     this.material.positionNode = Fn(() => {
       return storage(points, 'vec4').element(positionLocal.x).xyz;
@@ -28,7 +28,10 @@ export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> impl
     this.visible = this.visibility(settings);
   }
 
-  private static createGeometry(count: number, resolution: number): BufferGeometry {
+  private static createGeometry(
+    count: number,
+    resolution: number,
+  ): BufferGeometry {
     const points: Vector2[] = [];
     for (let y = 0; y < count; y++) {
       const offset = y * resolution;

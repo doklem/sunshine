@@ -3,17 +3,17 @@ import { Node, NodeMaterial } from 'three/webgpu';
 import { Settings } from '../configuration/settings';
 import { Configurable } from '../configuration/configurable';
 
-export class DebugLineSegments extends LineSegments<BufferGeometry, NodeMaterial> implements Configurable {
-
+export class DebugLineSegments
+  extends LineSegments<BufferGeometry, NodeMaterial>
+  implements Configurable
+{
   public constructor(
     points: Vector3[],
     colorNode: Node,
     private visibility: (settings: Settings) => boolean,
-    radius: number) {
-    super(
-      new BufferGeometry().setFromPoints(points),
-      new NodeMaterial()
-    );
+    radius: number,
+  ) {
+    super(new BufferGeometry().setFromPoints(points), new NodeMaterial());
     this.material.colorNode = colorNode;
 
     this.geometry.computeBoundingSphere();

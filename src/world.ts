@@ -19,7 +19,6 @@ import { ClosedFlares } from './meshes/closed-flares';
 import { loadGradientTexturesAsync } from './textures/gradient-textures';
 
 export class World implements Configurable {
-
   private static readonly ROTATION_SPEED = 0.01;
 
   private readonly scene: Scene;
@@ -37,15 +36,24 @@ export class World implements Configurable {
   private rotation = true;
   private playbackSpeed = 1;
 
-  public constructor(canvas: HTMLCanvasElement, private readonly debugMode: boolean, private readonly stats?: Stats) {
+  public constructor(
+    canvas: HTMLCanvasElement,
+    private readonly debugMode: boolean,
+    private readonly stats?: Stats,
+  ) {
     this.renderer = new WebGPURenderer({
       antialias: true,
-      canvas
+      canvas,
     });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight, false);
 
-    this.camera = new PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.001, 100);
+    this.camera = new PerspectiveCamera(
+      50,
+      window.innerWidth / window.innerHeight,
+      0.001,
+      100,
+    );
     this.camera.position.set(0, 0, 1.3);
 
     this.controls = new OrbitControls(this.camera, canvas);
@@ -60,7 +68,10 @@ export class World implements Configurable {
     this.controllableTime = new UniformNode(0);
 
     if (debugMode) {
-      this.debugMeshes = new DebugMeshes(magneticPoles, this.magneticConnections);
+      this.debugMeshes = new DebugMeshes(
+        magneticPoles,
+        this.magneticConnections,
+      );
       this.scene.add(this.debugMeshes);
       this.configurables.push(this.debugMeshes);
     }
@@ -89,21 +100,39 @@ export class World implements Configurable {
       this.magneticConnections.convectionFlowAndSunspotsTexture,
       gradientTextures.intensitygramColored.surface,
       gradientTextures.aia304a.surface,
-      time
+      time,
     );
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
 
-    const flareFragmentNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 1, 1, 3, 1, FlaresBase.adpatFragmentNoise);
+    const flareFragmentNoise = noiseHelper.createSimplexTexture2D(
+      128,
+      128,
+      0.25,
+      1,
+      1,
+      3,
+      1,
+      FlaresBase.adpatFragmentNoise,
+    );
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
-    const flareVertexNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
+    const flareVertexNoise = noiseHelper.createSimplexTexture2D(
+      128,
+      128,
+      0.25,
+      0.01,
+      0.04,
+      3,
+      4,
+    );
     sceneElement = new ClosedFlares(
       magneticFieldLines,
       flareVertexNoise,
       flareFragmentNoise,
       gradientTextures.aia304a.closedFlare,
-      time);
+      time,
+    );
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
     sceneElement = new OpenFlares(
@@ -111,7 +140,8 @@ export class World implements Configurable {
       flareVertexNoise,
       flareFragmentNoise,
       gradientTextures.aia304a.openFlare,
-      time);
+      time,
+    );
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
 
@@ -128,11 +158,20 @@ export class World implements Configurable {
     }
 
     this.playbackSpeed = settings.playbackSpeed;
-    this.bloomPass.strength.value = settings.instrument === Instrument.AIA_304_A ? settings.aia304a.bloomStrength : 0;
-    this.configurables.forEach(configurable => configurable.applySettings(settings));
+    this.bloomPass.strength.value =
+      settings.instrument === Instrument.AIA_304_A
+        ? settings.aia304a.bloomStrength
+        : 0;
+    this.configurables.forEach((configurable) =>
+      configurable.applySettings(settings),
+    );
   }
 
-  public onResize(width: number, height: number, devicePixelRatio: number): void {
+  public onResize(
+    width: number,
+    height: number,
+    devicePixelRatio: number,
+  ): void {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
 
@@ -153,8 +192,7 @@ export class World implements Configurable {
 
     if (this.bloomPass.strength.value > 0) {
       this.postProcessing.render();
-    }
-    else {
+    } else {
       this.renderer.render(this.scene, this.camera);
     }
 

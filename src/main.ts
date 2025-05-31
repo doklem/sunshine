@@ -3,20 +3,22 @@ import { World } from './world';
 import { Settings } from './configuration/settings';
 
 export class Main {
-
   private readonly world: World;
   private readonly canvas: HTMLCanvasElement;
   private readonly settings: Settings;
   private readonly stats?: Stats;
 
   public constructor() {
-    const display = document.querySelector<HTMLCanvasElement>('#display');;
+    const display = document.querySelector<HTMLCanvasElement>('#display');
     if (display === null) {
       throw new Error('Failed to obtain the HTML canvas element');
     }
     this.canvas = display;
 
-    const debugMode = new URLSearchParams(window.location.search).get('debug')?.toUpperCase() === 'TRUE';
+    const debugMode =
+      new URLSearchParams(window.location.search)
+        .get('debug')
+        ?.toUpperCase() === 'TRUE';
 
     this.settings = new Settings(this.applySettings.bind(this), debugMode);
 
@@ -32,7 +34,7 @@ export class Main {
         precision: 2,
         horizontal: false,
         minimal: false,
-        mode: 0
+        mode: 0,
       });
       document.body.appendChild(this.stats.dom);
     }
@@ -49,7 +51,11 @@ export class Main {
   public onResize(): void {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
-    this.world.onResize(window.innerWidth, window.innerHeight, window.devicePixelRatio);
+    this.world.onResize(
+      window.innerWidth,
+      window.innerHeight,
+      window.devicePixelRatio,
+    );
   }
 
   private applySettings(): void {

@@ -10,10 +10,12 @@ import { MagneticFieldLines } from '../simulation/magnetic-field-lines';
 import { Configurable } from '../configuration/configurable';
 
 export class DebugMeshes extends Group implements Configurable {
-
   private readonly configurableDebugElements: Configurable[];
 
-  public constructor(magneticPoles: MagneticPoles, magneticConnections: MagneticConnections) {
+  public constructor(
+    magneticPoles: MagneticPoles,
+    magneticConnections: MagneticConnections,
+  ) {
     super();
     this.configurableDebugElements = [];
 
@@ -22,7 +24,7 @@ export class DebugMeshes extends Group implements Configurable {
       magneticPoles.northPoles,
       vec4(0, 0, 1, 1),
       (settings: Settings) => settings.magentosphre.northPoles,
-      MagneticPoles.POLE_ALTITUDE_RADIUS
+      MagneticPoles.POLE_ALTITUDE_RADIUS,
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
@@ -31,7 +33,7 @@ export class DebugMeshes extends Group implements Configurable {
       magneticPoles.southPoles,
       vec4(1, 0, 0, 1),
       (settings: Settings) => settings.magentosphre.southPoles,
-      MagneticPoles.POLE_ALTITUDE_RADIUS
+      MagneticPoles.POLE_ALTITUDE_RADIUS,
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
@@ -40,16 +42,22 @@ export class DebugMeshes extends Group implements Configurable {
       magneticConnections.closedConnections.flat(),
       vec4(0, 0.3, 0, 1),
       (settings: Settings) => settings.magentosphre.closedConnections,
-      MagneticFieldLines.CLOSED_LARGE_HIGH_ALTITUDE_RADIUS
+      MagneticFieldLines.CLOSED_LARGE_HIGH_ALTITUDE_RADIUS,
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
 
     debugElement = new DebugLineSegments(
-      magneticConnections.openConnections.flatMap(pole => [pole, pole.clone().normalize().multiplyScalar(MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS)]),
+      magneticConnections.openConnections.flatMap((pole) => [
+        pole,
+        pole
+          .clone()
+          .normalize()
+          .multiplyScalar(MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS),
+      ]),
       vec4(0.3, 0.3, 0, 1),
       (settings: Settings) => settings.magentosphre.openConnections,
-      MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS
+      MagneticFieldLines.OPEN_HIGH_ALTITUDE_RADIUS,
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
@@ -62,7 +70,7 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.closedCount,
       vec4(0, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
-      MagneticFieldLines.CLOSED_LINE_RESOLUTION
+      MagneticFieldLines.CLOSED_LINE_RESOLUTION,
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
@@ -72,7 +80,7 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.closedCount,
       vec4(0, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.closedMagenticFieldLines,
-      MagneticFieldLines.CLOSED_LINE_RESOLUTION
+      MagneticFieldLines.CLOSED_LINE_RESOLUTION,
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
@@ -82,7 +90,7 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.openCount,
       vec4(1, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
-      MagneticFieldLines.OPEN_LINE_RESOLUTION
+      MagneticFieldLines.OPEN_LINE_RESOLUTION,
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
@@ -92,14 +100,14 @@ export class DebugMeshes extends Group implements Configurable {
       magneticFieldLines.openCount,
       vec4(1, 1, 0, 1),
       (settings: Settings) => settings.magentosphre.openMagenticFieldLines,
-      MagneticFieldLines.OPEN_LINE_RESOLUTION
+      MagneticFieldLines.OPEN_LINE_RESOLUTION,
     );
     this.add(debugElement);
     this.configurableDebugElements.push(debugElement);
   }
 
   public applySettings(settings: Settings): void {
-    this.children.forEach(child => {
+    this.children.forEach((child) => {
       const debugElement = child as unknown as Configurable;
       if (debugElement) {
         debugElement.applySettings(settings);

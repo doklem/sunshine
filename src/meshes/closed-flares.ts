@@ -12,7 +12,8 @@ export class ClosedFlares extends FlaresBase {
     magneticFieldLines: MagneticFieldLines,
     vertexNoise: Texture,
     fragmentNoise: Texture,
-    colorGradient: Texture) {
+    colorGradient: Texture,
+    time: ShaderNodeObject<Node>) {
     super(
       magneticFieldLines.closedCount,
       new Vector2(MagneticFieldLines.CLOSED_LINE_RESOLUTION, 10),
@@ -21,7 +22,8 @@ export class ClosedFlares extends FlaresBase {
       vertexNoise,
       fragmentNoise,
       new Vector2(0.01, 0.37),
-      colorGradient
+      colorGradient,
+      time
     );
   }
 

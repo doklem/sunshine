@@ -8,6 +8,7 @@ export class Settings {
   public instrument: Instrument;
   public surface: boolean;
   public rotation: boolean;
+  public playbackSpeed = 1;
 
   public readonly magentosphre = {
     northPoles: false,
@@ -39,6 +40,7 @@ export class Settings {
       this.instrument = Instrument.AIA_304_A;
     }
     this.gui.add(this, 'instrument', instruments).name('Instrument');
+    this.gui.add(this, 'playbackSpeed', -5, 5, 0.1).name('Playback Speed');
 
     if (debugMode) {
       this.surface = true;

@@ -12,7 +12,8 @@ export class OpenFlares extends FlaresBase {
     magneticFieldLines: MagneticFieldLines,
     vertexNoise: Texture,
     fragmentNoise: Texture,
-    colorGradient: Texture) {
+    colorGradient: Texture,
+    time: ShaderNodeObject<Node>) {
     super(
       magneticFieldLines.openCount,
       new Vector2(MagneticFieldLines.OPEN_LINE_RESOLUTION, 3),
@@ -21,7 +22,8 @@ export class OpenFlares extends FlaresBase {
       vertexNoise,
       fragmentNoise,
       new Vector2(0.001, 0.04),
-      colorGradient
+      colorGradient,
+      time
     );
   }
 

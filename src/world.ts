@@ -1,9 +1,9 @@
 import Stats from 'stats-gl';
 import { Object3D, PerspectiveCamera, Scene } from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import { PostProcessing, WebGPURenderer } from 'three/webgpu';
+import { PostProcessing, UniformNode, WebGPURenderer } from 'three/webgpu';
 import { Surface } from './meshes/surface';
-import { pass } from 'three/tsl';
+import { float, pass } from 'three/tsl';
 import BloomNode from 'three/examples/jsm/tsl/display/BloomNode.js';
 import { Settings } from './configuration/settings';
 import { NoiseTextureHelper } from './textures/noise-texture-helper';
@@ -20,6 +20,8 @@ import { loadGradientTexturesAsync } from './textures/gradient-textures';
 
 export class World implements Configurable {
 
+  private static readonly ROTATION_SPEED = 0.01;
+
   private readonly scene: Scene;
   private readonly camera: PerspectiveCamera;
   private readonly controls: OrbitControls;
@@ -29,9 +31,11 @@ export class World implements Configurable {
   private readonly magneticConnections: MagneticConnections;
   private readonly debugMeshes?: DebugMeshes;
   private readonly configurables: Configurable[];
+  private readonly controllableTime: UniformNode<number>;
 
   private lastFrame = 0;
   private rotation = true;
+  private playbackSpeed = 1;
 
   public constructor(canvas: HTMLCanvasElement, private readonly debugMode: boolean, private readonly stats?: Stats) {
     this.renderer = new WebGPURenderer({
@@ -52,6 +56,8 @@ export class World implements Configurable {
     this.magneticConnections = new MagneticConnections(magneticPoles);
 
     this.configurables = [];
+
+    this.controllableTime = new UniformNode(0);
 
     if (debugMode) {
       this.debugMeshes = new DebugMeshes(magneticPoles, this.magneticConnections);
@@ -75,12 +81,15 @@ export class World implements Configurable {
     const magneticFieldLines = new MagneticFieldLines(this.magneticConnections);
     await magneticFieldLines.updateAsync(this.renderer);
 
+    const time = float(this.controllableTime);
+
     let sceneElement: Configurable & Object3D = new Surface(
       noiseHelper.createVoronoiTexture3D(64, 1),
       noiseHelper.createSimplexTexture3D(256, 0.25, 1, 0.01, 3, 2),
       this.magneticConnections.convectionFlowAndSunspotsTexture,
       gradientTextures.intensitygramColored.surface,
-      gradientTextures.aia304a.surface
+      gradientTextures.aia304a.surface,
+      time
     );
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
@@ -89,10 +98,20 @@ export class World implements Configurable {
     flareFragmentNoise.generateMipmaps = true;
     flareFragmentNoise.needsUpdate = true;
     const flareVertexNoise = noiseHelper.createSimplexTexture2D(128, 128, 0.25, 0.01, 0.04, 3, 4);
-    sceneElement = new ClosedFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise, gradientTextures.aia304a.closedFlare);
+    sceneElement = new ClosedFlares(
+      magneticFieldLines,
+      flareVertexNoise,
+      flareFragmentNoise,
+      gradientTextures.aia304a.closedFlare,
+      time);
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
-    sceneElement = new OpenFlares(magneticFieldLines, flareVertexNoise, flareFragmentNoise, gradientTextures.aia304a.openFlare);
+    sceneElement = new OpenFlares(
+      magneticFieldLines,
+      flareVertexNoise,
+      flareFragmentNoise,
+      gradientTextures.aia304a.openFlare,
+      time);
     this.scene.add(sceneElement);
     this.configurables.push(sceneElement);
 
@@ -108,6 +127,7 @@ export class World implements Configurable {
       this.rotation = settings.rotation;
     }
 
+    this.playbackSpeed = settings.playbackSpeed;
     this.bloomPass.strength.value = settings.instrument === Instrument.AIA_304_A ? settings.aia304a.bloomStrength : 0;
     this.configurables.forEach(configurable => configurable.applySettings(settings));
   }
@@ -121,12 +141,14 @@ export class World implements Configurable {
   }
 
   private onAnimationFrame(time: DOMHighResTimeStamp): void {
-    var delta = this.lastFrame - time;
+    const delta = time - this.lastFrame;
+    const adjustedDelta = delta * 0.001 * this.playbackSpeed; // Past seconds in playback speed since last frame
+    this.controllableTime.value += adjustedDelta;
     this.lastFrame = time;
 
     this.controls.update(delta);
     if (this.rotation) {
-      this.scene.rotateY(delta * -0.00002);
+      this.scene.rotateY(World.ROTATION_SPEED * adjustedDelta);
     }
 
     if (this.bloomPass.strength.value > 0) {

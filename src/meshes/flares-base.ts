@@ -1,12 +1,15 @@
 import { DoubleSide, InstancedMesh, PlaneGeometry, Texture, Vector2 } from 'three';
 import { Node, NodeMaterial, StorageBufferAttribute, VarNode } from 'three/webgpu';
-import { float, Fn, instanceIndex, mix, PI, positionLocal, storage, texture, time, uv, vec2, vec4 } from 'three/tsl';
+import { float, Fn, instanceIndex, mix, PI, positionLocal, storage, texture, uv, vec2, vec4 } from 'three/tsl';
 import { Settings } from '../configuration/settings';
 import { ShaderNodeObject, vertexStage } from 'three/src/nodes/TSL.js';
 import { Configurable } from '../configuration/configurable';
 import { Surface } from './surface';
 
 export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMaterial> implements Configurable {
+
+  private static readonly DISPLACEMENT_SPEED = 0.05;
+  private static readonly OFFSET_SPEED = 0.6;
 
   protected static readonly SURFACE_RADIUS_SQUARED = Surface.GEOMETRY_RADIUS * Surface.GEOMETRY_RADIUS;
 
@@ -18,7 +21,8 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
     vertexNoise: Texture,
     fragmentNoise: Texture,
     fragmentNoiseZoom: Vector2,
-    colorGradient: Texture) {
+    colorGradient: Texture,
+    time: ShaderNodeObject<Node>) {
     super(
       FlaresBase.createGeometry(resolution),
       new NodeMaterial(),
@@ -37,8 +41,8 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
     const edgeMask = positionBetweenLines.mul(PI).sin();
 
     const stiffness = mix(leftLinePoint.a, rightLinePoint.a, positionBetweenLines);
-    const offset = texture(vertexNoise, vec2(time.mul(0.1), lineId)).xyz.mul(stiffness.oneMinus());
-    const position = mix(leftLinePoint.xyz, rightLinePoint.xyz, positionBetweenLines).add(offset).toVar();
+    const displacement = texture(vertexNoise, vec2(time.mul(FlaresBase.DISPLACEMENT_SPEED), lineId)).xyz.mul(stiffness.oneMinus());
+    const position = mix(leftLinePoint.xyz, rightLinePoint.xyz, positionBetweenLines).add(displacement).toVar();
     const heightSqVertexStage = position.lengthSq().toVar();
     const heightMask = this.createHightMask(heightSqVertexStage);
     const alpha = vertexStage(heightMask.mul(edgeMask));
@@ -47,9 +51,10 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
     this.material.positionNode = position;
 
     this.material.colorNode = Fn(() => {
+      const offset = vec2(time.mul(FlaresBase.OFFSET_SPEED), instanceIndex);
       const noise = texture(
         fragmentNoise,
-        uv().sub(vec2(time, instanceIndex)).mul(vec2(fragmentNoiseZoom.x, fragmentNoiseZoom.y))
+        uv().add(offset).mul(vec2(fragmentNoiseZoom.x, fragmentNoiseZoom.y))
       ).x;
 
       const intensity = heightSq.smoothstep(FlaresBase.SURFACE_RADIUS_SQUARED * 1.2, FlaresBase.SURFACE_RADIUS_SQUARED).add(alpha.mul(1));

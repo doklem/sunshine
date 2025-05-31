@@ -1,39 +1,45 @@
 import Stats from 'stats-gl';
 import { World } from './world';
-import { Settings } from './settings';
+import { Settings } from './configuration/settings';
 
 export class Main {
-
   private readonly world: World;
   private readonly canvas: HTMLCanvasElement;
-  private readonly stats: Stats;
   private readonly settings: Settings;
+  private readonly stats?: Stats;
 
   public constructor() {
-    const display = document.querySelector<HTMLCanvasElement>('#display');;
+    const display = document.querySelector<HTMLCanvasElement>('#display');
     if (display === null) {
       throw new Error('Failed to obtain the HTML canvas element');
     }
     this.canvas = display;
 
-    this.settings = new Settings(this.applySettings.bind(this));
+    const debugMode =
+      new URLSearchParams(window.location.search)
+        .get('debug')
+        ?.toUpperCase() === 'TRUE';
 
-    this.stats = new Stats({
-      trackGPU: false,
-      trackHz: false,
-      trackCPT: false,
-      logsPerSecond: 4,
-      graphsPerSecond: 30,
-      samplesLog: 40,
-      samplesGraph: 10,
-      precision: 2,
-      horizontal: false,
-      minimal: false,
-      mode: 0
-    });
-    document.body.appendChild(this.stats.dom);
+    this.settings = new Settings(this.applySettings.bind(this), debugMode);
 
-    this.world = new World(this.canvas, this.stats);
+    if (debugMode) {
+      this.stats = new Stats({
+        trackGPU: false,
+        trackHz: false,
+        trackCPT: false,
+        logsPerSecond: 4,
+        graphsPerSecond: 30,
+        samplesLog: 40,
+        samplesGraph: 10,
+        precision: 2,
+        horizontal: false,
+        minimal: false,
+        mode: 0,
+      });
+      document.body.appendChild(this.stats.dom);
+    }
+
+    this.world = new World(this.canvas, debugMode, this.stats);
   }
 
   public async runAsync(): Promise<void> {
@@ -45,7 +51,11 @@ export class Main {
   public onResize(): void {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
-    this.world.onResize(window.innerWidth, window.innerHeight, window.devicePixelRatio);
+    this.world.onResize(
+      window.innerWidth,
+      window.innerHeight,
+      window.devicePixelRatio,
+    );
   }
 
   private applySettings(): void {

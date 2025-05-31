@@ -1,6 +1,10 @@
+import eslint from 'vite-plugin-eslint';
+
 /**
-* @type {import('vite').UserConfig}
-*/
+ * @type {import('vite').UserConfig}
+ */
 export default {
-  base: process.env.NODE_ENV === 'production' ? 'sunshine/' : ''
-}
+  plugins: [eslint()],
+  // eslint-disable-next-line no-undef
+  base: process.env.NODE_ENV === 'production' ? 'sunshine/' : '',
+};

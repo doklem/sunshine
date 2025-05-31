@@ -1,4 +1,0 @@
-export enum WaveLength {
-  HMI_INTENSITYGRAM,
-  HMI_INTENSITYGRAM_COLORED
-}

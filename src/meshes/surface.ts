@@ -1,6 +1,6 @@
 import { BufferGeometry, Data3DTexture, IcosahedronGeometry, Mesh, Texture } from 'three';
 import { ShaderNodeFn, ShaderNodeObject } from 'three/src/nodes/TSL.js';
-import { abs, cameraPosition, Fn, fract, mix, normalLocal, normalWorld, texture, texture3D, uv, vec2, vec3, vec4 } from 'three/tsl';
+import { abs, cameraPosition, Fn, fract, max, mix, normalLocal, normalWorld, texture, texture3D, uv, vec2, vec3, vec4 } from 'three/tsl';
 import { Node, NodeMaterial } from 'three/webgpu';
 import { Settings } from '../configuration/settings';
 import { Instrument } from '../configuration/instrument';
@@ -12,6 +12,8 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> implements Confi
   private static readonly GEOMETRY_DETAILS = 15;
   private static readonly CONVECTION_SPEED = 0.005;
   private static readonly CONVECTION_ZOOM = 12;
+  private static readonly ACTIVITY_SPEED = 0.005;
+  private static readonly ACTIVITY_ZOOM = 0.2;
 
   public static readonly GEOMETRY_RADIUS = 0.5;
 
@@ -38,6 +40,7 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> implements Confi
     const sunspot = convectionFlowAndSunspot.a;
     const convection = this.createFlowNode(convectionFlowAndSunspot.xyz, Surface.CONVECTION_SPEED, Surface.CONVECTION_ZOOM, voronoiTexture);
     const halo = cameraPosition.normalize().dot(normalWorld).mul(Math.PI).sin().smoothstep(1, 0);
+    const activity = this.createFlowNode(normalLocal, Surface.ACTIVITY_SPEED, Surface.ACTIVITY_ZOOM, simplexNoiseTexture);
 
     this.renderHMIItensitygram = Fn(() => {
       const intensity = convection.mul(halo.mul(0.25)).sub(sunspot);
@@ -45,12 +48,13 @@ export class Surface extends Mesh<BufferGeometry, NodeMaterial> implements Confi
     });
 
     this.renderHMIItensitygramColored = Fn(() => {
-      const intensity = convection.mul(halo.mul(0.75).add(0.25)).sub(sunspot);
+      const intensity = max(0, convection.mul(halo.mul(0.75).add(0.25)).sub(sunspot));
       return texture(intensitygramGradient, vec2(intensity, 0.5));
     });
 
     this.renderAIA304A = Fn(() => {
-      return texture(aia304aGradient, vec2(sunspot, 0.5));
+      const intensity = max(activity.mul(50), sunspot);
+      return texture(aia304aGradient, vec2(intensity, 0.5));
     });
 
     this.renderDebug = Fn(() => {

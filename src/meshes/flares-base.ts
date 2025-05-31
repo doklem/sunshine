@@ -66,7 +66,7 @@ export abstract class FlaresBase extends InstancedMesh<PlaneGeometry, NodeMateri
 
   public abstract applySettings(settings: Settings): void;
 
-  public static adpatFragmentNoise(value: number, _: number): number {
+  public static adpatFragmentNoise(value: number): number {
     if (value < 0) {
       value *= -0.8;
     }

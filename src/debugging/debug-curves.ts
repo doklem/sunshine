@@ -31,7 +31,7 @@ export class DebugCurves extends LineSegments<BufferGeometry, NodeMaterial> impl
   private static createGeometry(count: number, resolution: number): BufferGeometry {
     const points: Vector2[] = [];
     for (let y = 0; y < count; y++) {
-      let offset = y * resolution;
+      const offset = y * resolution;
       for (let x = 0; x < resolution - 1; x++) {
         points.push(new Vector2(x + offset));
         points.push(new Vector2(x + 1 + offset));

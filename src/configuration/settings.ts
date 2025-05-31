@@ -28,18 +28,28 @@ export class Settings {
   public constructor(onFinishedChange: () => void, debugMode: boolean) {
     this.gui.onFinishChange(() => onFinishedChange());
 
-    const instruments: any = {
-      'HMI Intensitygram': Instrument.HMI_INTENSITYGRAM,
-      'HMI Intensitygram Colored': Instrument.HMI_INTENSITYGRAM_COLORED,
-      'AIA 304 A': Instrument.AIA_304_A
-    };
     if (debugMode) {
-      instruments['Debug'] = Instrument.DEBUG;
+      this.gui.add(
+        this,
+        'instrument',
+        {
+          'HMI Intensitygram': Instrument.HMI_INTENSITYGRAM,
+          'HMI Intensitygram Colored': Instrument.HMI_INTENSITYGRAM_COLORED,
+          'AIA 304 A': Instrument.AIA_304_A,
+          'Debug': Instrument.DEBUG
+        }).name('Instrument');
       this.instrument = Instrument.AIA_304_A;
     } else {
+      this.gui.add(
+        this,
+        'instrument',
+        {
+          'HMI Intensitygram': Instrument.HMI_INTENSITYGRAM,
+          'HMI Intensitygram Colored': Instrument.HMI_INTENSITYGRAM_COLORED,
+          'AIA 304 A': Instrument.AIA_304_A
+        }).name('Instrument');
       this.instrument = Instrument.AIA_304_A;
     }
-    this.gui.add(this, 'instrument', instruments).name('Instrument');
     this.gui.add(this, 'playbackSpeed', -5, 5, 0.1).name('Playback Speed');
 
     if (debugMode) {

@@ -32,34 +32,10 @@ export class MagneticConnections {
 
   public constructor(magneticPoles: MagneticPoles) {
     this.closedConnections = [];
-    let distance: number;
-    let northPoles = [...magneticPoles.northPoles];
 
     // Suffle the south poles to get a more random but still deterministic orientation of flares
-    const southPoles = magneticPoles.southPoles
-      .map((value, index) => ({ value, key: MagneticConnections.hash(index) }))
-      .sort((valueA, valueB) => valueA.key - valueB.key)
-      .map(({ value }) => value);
-
-    southPoles.forEach(southPole => {
-      let closestNorthPole: Vector3 | undefined;
-      let closestDistance = Number.MAX_SAFE_INTEGER;
-
-      northPoles.forEach(northPole => {
-        distance = northPole.distanceToSquared(southPole);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          closestNorthPole = northPole;
-        }
-      });
-
-      if (closestNorthPole
-        && MagneticConnections.MIN_CLOSED_CONNECTION_DISTANCE < closestDistance
-        && closestDistance < MagneticConnections.MAX_CLOSED_CONNECTION_DISTANCE) {
-        this.closedConnections.push([closestNorthPole, southPole]);
-        northPoles.splice(northPoles.indexOf(closestNorthPole), 1);
-      }
-    });
+    const southPoles = MagneticConnections.shufflePoles(magneticPoles.southPoles);
+    this.findClosedConnections(southPoles, [...magneticPoles.northPoles]);
 
     this.closedConnectionsBuffer = new StorageBufferAttribute(
       new Float32Array(this.closedConnections.flatMap(connection => [
@@ -131,6 +107,29 @@ export class MagneticConnections {
     );
   }
 
+  private findClosedConnections(southPoles: Vector3[], northPoles: Vector3[]): void {
+    let distance: number;
+    southPoles.forEach(southPole => {
+      let closestNorthPole: Vector3 | undefined;
+      let closestDistance = Number.MAX_SAFE_INTEGER;
+
+      northPoles.forEach(northPole => {
+        distance = northPole.distanceToSquared(southPole);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestNorthPole = northPole;
+        }
+      });
+
+      if (closestNorthPole
+        && MagneticConnections.MIN_CLOSED_CONNECTION_DISTANCE < closestDistance
+        && closestDistance < MagneticConnections.MAX_CLOSED_CONNECTION_DISTANCE) {
+        this.closedConnections.push([closestNorthPole, southPole]);
+        northPoles.splice(northPoles.indexOf(closestNorthPole), 1);
+      }
+    });
+  }
+
   private static validOpenConnection(pole: Vector3, closedConnections: Vector3[][]): boolean {
     let closedConnection: Vector3[];
     for (let i = 0; i < closedConnections.length; i++) {
@@ -145,6 +144,12 @@ export class MagneticConnections {
 
     }
     return true;
+  }
+
+  private static shufflePoles(poles: Vector3[]): Vector3[] {
+    return poles.map((value, index) => ({ value, key: MagneticConnections.hash(index) }))
+      .sort((valueA, valueB) => valueA.key - valueB.key)
+      .map(({ value }) => value);
   }
 
   private static hash(value: number): number {
